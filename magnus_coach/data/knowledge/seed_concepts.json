@@ -1,0 +1,236 @@
+{
+ "source_name": "seed_concepts",
+ "items": [
+  {
+   "id": "fork",
+   "topic": "tactic",
+   "title": "Fork",
+   "text": "A fork is a single move that attacks two or more enemy pieces at once, so the opponent can usually save only one of them. Check that the forking piece cannot simply be captured.",
+   "tags": [
+    "fork",
+    "double_attack",
+    "tactic"
+   ],
+   "provenance": {
+    "type": "authored",
+    "author": "ChessMate-MagnusCoach project",
+    "note": "Generic concept definition written for this project; not quoted or paraphrased from any book."
+   }
+  },
+  {
+   "id": "pin",
+   "topic": "tactic",
+   "title": "Pin",
+   "text": "A pin freezes a piece because moving it would expose a more valuable piece (or the king) behind it on the same line. A pinned piece is a good target for extra attackers.",
+   "tags": [
+    "pin",
+    "tactic"
+   ],
+   "provenance": {
+    "type": "authored",
+    "author": "ChessMate-MagnusCoach project",
+    "note": "Generic concept definition written for this project; not quoted or paraphrased from any book."
+   }
+  },
+  {
+   "id": "skewer",
+   "topic": "tactic",
+   "title": "Skewer",
+   "text": "A skewer attacks a valuable piece that must move, exposing a less valuable piece behind it on the same line.",
+   "tags": [
+    "skewer",
+    "tactic"
+   ],
+   "provenance": {
+    "type": "authored",
+    "author": "ChessMate-MagnusCoach project",
+    "note": "Generic concept definition written for this project; not quoted or paraphrased from any book."
+   }
+  },
+  {
+   "id": "discovered_attack",
+   "topic": "tactic",
+   "title": "Discovered attack",
+   "text": "Moving one piece can uncover an attack by a piece behind it. If the uncovered attack is a check, the moving piece may make a second threat at the same time.",
+   "tags": [
+    "discovered_attack",
+    "discovered_check",
+    "tactic"
+   ],
+   "provenance": {
+    "type": "authored",
+    "author": "ChessMate-MagnusCoach project",
+    "note": "Generic concept definition written for this project; not quoted or paraphrased from any book."
+   }
+  },
+  {
+   "id": "hanging_piece",
+   "topic": "tactic",
+   "title": "Hanging pieces",
+   "text": "A piece is hanging when the opponent can win it by capture without adequate compensation. Before every move, check which of your pieces are attacked and whether each is sufficiently defended.",
+   "tags": [
+    "hanging_piece",
+    "tactic",
+    "blunder_check"
+   ],
+   "provenance": {
+    "type": "authored",
+    "author": "ChessMate-MagnusCoach project",
+    "note": "Generic concept definition written for this project; not quoted or paraphrased from any book."
+   }
+  },
+  {
+   "id": "back_rank",
+   "topic": "tactic",
+   "title": "Back-rank weakness",
+   "text": "A king with no flight squares because its own pieces block the squares in front of it can be mated by a rook or queen on the back rank. Creating an escape square (luft) removes the weakness.",
+   "tags": [
+    "back_rank_mate",
+    "back_rank_weakness",
+    "mate_in_one",
+    "tactic"
+   ],
+   "provenance": {
+    "type": "authored",
+    "author": "ChessMate-MagnusCoach project",
+    "note": "Generic concept definition written for this project; not quoted or paraphrased from any book."
+   }
+  },
+  {
+   "id": "overloaded_piece",
+   "topic": "tactic",
+   "title": "Overloaded piece",
+   "text": "A piece that is the only defender of two things cannot do both jobs; forcing it to capture or move can win material.",
+   "tags": [
+    "overloaded_piece",
+    "tactic"
+   ],
+   "provenance": {
+    "type": "authored",
+    "author": "ChessMate-MagnusCoach project",
+    "note": "Generic concept definition written for this project; not quoted or paraphrased from any book."
+   }
+  },
+  {
+   "id": "trapped_piece",
+   "topic": "tactic",
+   "title": "Trapped piece",
+   "text": "A piece that is attacked and has no safe square can be lost even if it looks safe. Edge pieces are especially prone to being trapped.",
+   "tags": [
+    "trapped_piece",
+    "tactic"
+   ],
+   "provenance": {
+    "type": "authored",
+    "author": "ChessMate-MagnusCoach project",
+    "note": "Generic concept definition written for this project; not quoted or paraphrased from any book."
+   }
+  },
+  {
+   "id": "mate_threat",
+   "topic": "tactic",
+   "title": "Mate threats",
+   "text": "Always ask whether the opponent has a checkmating move if you make a non-forcing move, and whether you have one yourself.",
+   "tags": [
+    "mate_threat",
+    "mate_in_one",
+    "tactical"
+   ],
+   "provenance": {
+    "type": "authored",
+    "author": "ChessMate-MagnusCoach project",
+    "note": "Generic concept definition written for this project; not quoted or paraphrased from any book."
+   }
+  },
+  {
+   "id": "opening_principles",
+   "topic": "opening",
+   "title": "Opening principles",
+   "text": "In the opening, develop minor pieces, fight for the centre, castle to safety, and avoid moving the same piece repeatedly or starting an attack before development is complete.",
+   "tags": [
+    "opening",
+    "principles"
+   ],
+   "provenance": {
+    "type": "authored",
+    "author": "ChessMate-MagnusCoach project",
+    "note": "Generic concept definition written for this project; not quoted or paraphrased from any book."
+   }
+  },
+  {
+   "id": "king_safety",
+   "topic": "strategy",
+   "title": "King safety",
+   "text": "Pawns in front of the king and nearby defenders form its shelter. Advancing those pawns weakens the shelter, so do it only when the attack justifies it.",
+   "tags": [
+    "king_safety",
+    "positional",
+    "pawn_storm"
+   ],
+   "provenance": {
+    "type": "authored",
+    "author": "ChessMate-MagnusCoach project",
+    "note": "Generic concept definition written for this project; not quoted or paraphrased from any book."
+   }
+  },
+  {
+   "id": "pawn_structure",
+   "topic": "strategy",
+   "title": "Pawn structure",
+   "text": "Doubled and isolated pawns are structural weaknesses because they are harder to defend. Pawn moves cannot be undone, so consider what squares a pawn move gives up.",
+   "tags": [
+    "pawn_structure",
+    "positional"
+   ],
+   "provenance": {
+    "type": "authored",
+    "author": "ChessMate-MagnusCoach project",
+    "note": "Generic concept definition written for this project; not quoted or paraphrased from any book."
+   }
+  },
+  {
+   "id": "piece_activity",
+   "topic": "strategy",
+   "title": "Piece activity",
+   "text": "Improve your least active piece before committing to a plan; active pieces control more squares and create more threats.",
+   "tags": [
+    "piece_placement",
+    "positional"
+   ],
+   "provenance": {
+    "type": "authored",
+    "author": "ChessMate-MagnusCoach project",
+    "note": "Generic concept definition written for this project; not quoted or paraphrased from any book."
+   }
+  },
+  {
+   "id": "endgame_activity",
+   "topic": "endgame",
+   "title": "Endgame activity",
+   "text": "In endgames the king becomes an active piece, and rooks belong behind passed pawns and on active files.",
+   "tags": [
+    "endgame"
+   ],
+   "provenance": {
+    "type": "authored",
+    "author": "ChessMate-MagnusCoach project",
+    "note": "Generic concept definition written for this project; not quoted or paraphrased from any book."
+   }
+  },
+  {
+   "id": "calculation",
+   "topic": "method",
+   "title": "Calculation checklist",
+   "text": "Before moving, list checks, captures and threats for both sides, then verify your intended line one forcing reply at a time.",
+   "tags": [
+    "calculation",
+    "tactical"
+   ],
+   "provenance": {
+    "type": "authored",
+    "author": "ChessMate-MagnusCoach project",
+    "note": "Generic concept definition written for this project; not quoted or paraphrased from any book."
+   }
+  }
+ ]
+}

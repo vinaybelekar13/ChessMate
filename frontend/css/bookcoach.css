@@ -1,0 +1,73 @@
+/* Book Coach screens — additive only, reuses ChessMate's existing design
+   tokens (see ChessMate/css/style.css :root) rather than redefining them. */
+
+.bc-library, .bc-dashboard, .bc-story, .bc-puzzle, .bc-upload {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 1rem;
+  font-family: var(--sans);
+  color: var(--ink);
+}
+
+.bc-btn {
+  font-family: var(--sans);
+  font-size: var(--fs-md);
+  padding: .5rem 1rem;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--ink);
+  cursor: pointer;
+}
+.bc-btn-accent {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+.bc-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  padding: .75rem 1rem;
+  margin-bottom: .5rem;
+  cursor: pointer;
+}
+
+.bc-muted { color: var(--muted); font-size: var(--fs-sm); }
+.bc-error { color: var(--bad); }
+
+.bc-coverage { display: grid; grid-template-columns: repeat(2, 1fr); gap: .5rem; margin: 1rem 0; }
+.bc-coverage-row {
+  display: flex; justify-content: space-between;
+  background: var(--panel2); border-radius: var(--r); padding: .5rem .75rem;
+}
+
+.bc-story-crumbs { font-size: var(--fs-sm); color: var(--muted); margin-bottom: .5rem; }
+.bc-story-narrative p { line-height: 1.5; margin: 0 0 .75rem; }
+.bc-story-board, .bc-puzzle-board { max-width: 420px; margin: 1rem 0; }
+
+.bc-badge {
+  font-size: var(--fs-xs); padding: .15rem .5rem; border-radius: 999px;
+  text-transform: uppercase; letter-spacing: .03em;
+}
+.bc-badge-book { background: var(--best); color: var(--on-accent); }
+.bc-badge-generated { background: var(--panel3); color: var(--ink2); }
+
+.bc-correct { color: var(--correct); font-weight: 600; }
+.bc-incorrect { color: var(--incorrect); font-weight: 600; }
+.bc-hint { color: var(--info); }
+
+.bc-modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,.4);
+  display: flex; align-items: center; justify-content: center;
+}
+.bc-modal-content {
+  background: var(--panel); border-radius: var(--r-lg); padding: 1.5rem;
+  max-width: 600px; position: relative;
+}
+.bc-modal-close {
+  position: absolute; top: .5rem; right: .75rem; background: none; border: none;
+  font-size: 1.25rem; cursor: pointer; color: var(--muted);
+}

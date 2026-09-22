@@ -1,0 +1,48 @@
+/* Magnus coach avatar/speech-bubble — additive only, reuses ChessMate's
+   existing design tokens (see css/style.css :root). Does not change the
+   size, position, or styling of any existing card/panel; it fills whatever
+   container it's mounted into (see js/integration/magnus-coach-bubble.js). */
+
+.magnus-bubble {
+  display: flex;
+  align-items: flex-start;
+  gap: .6rem;
+  padding: .55rem .7rem;
+  border-radius: var(--r);
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  font-family: var(--sans);
+}
+
+.magnus-bubble[hidden] { display: none; }
+
+.magnus-avatar {
+  flex: 0 0 auto;
+  width: 1.9rem;
+  height: 1.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.magnus-speech {
+  font-size: var(--fs-md);
+  color: var(--ink2);
+  line-height: 1.35;
+  padding-top: .15rem;
+}
+
+/* State accents — a thin left border only, never resizing the bubble */
+.magnus-bubble[data-state="mistake"],
+.magnus-bubble[data-state="wrong_training"] { border-left: 3px solid var(--caution); }
+.magnus-bubble[data-state="blunder"] { border-left: 3px solid var(--bad); }
+.magnus-bubble[data-state="good_move"],
+.magnus-bubble[data-state="correct_training"] { border-left: 3px solid var(--ok); }
+.magnus-bubble[data-state="historical_match"],
+.magnus-bubble[data-state="book_concept"],
+.magnus-bubble[data-state="book_puzzle"] { border-left: 3px solid var(--info); }

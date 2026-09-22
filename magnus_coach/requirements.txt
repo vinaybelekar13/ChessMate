@@ -1,0 +1,6 @@
+python-chess>=1.11
+numpy
+pandas
+tqdm
+pytest
+torch>=2.2  # CPU is enough; on Windows: pip install torch --index-url https://download.pytorch.org/whl/cpu

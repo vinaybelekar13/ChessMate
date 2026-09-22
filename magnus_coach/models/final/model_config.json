@@ -1,0 +1,53 @@
+{
+  "model_format": "magnus-transformer-v1",
+  "purpose": "Behavioural model of historical Magnus Carlsen move choices. Outputs a distribution over LEGAL moves; not an evaluator of move quality.",
+  "config": {
+    "d_model": 128,
+    "n_layers": 3,
+    "n_heads": 4,
+    "d_ff": 256,
+    "dropout": 0.1,
+    "policy_dim": 64,
+    "underpromo_bias_init": -2.0,
+    "num_moves": 4162,
+    "num_piece_tokens": 13,
+    "history_len": 5,
+    "num_speeds": 6,
+    "num_ep_states": 9,
+    "num_numeric": 10,
+    "encoding_version": "v1",
+    "model_format": "magnus-transformer-v1"
+  },
+  "parameter_count": 448771,
+  "input": {
+    "encoding_version": "v1",
+    "tensors": {
+      "squares": "long [B, 64]  piece id per square (0..12), side-to-move frame",
+      "history_from": "long [B, 5]  last moves' from-squares, newest first, 64 = pad",
+      "history_to": "long [B, 5]  last moves' to-squares, newest first, 64 = pad",
+      "speed": "long [B]  time-control class (0..5): unknown, ultrabullet, bullet, blitz, rapid, classical",
+      "ep": "long [B]  legal en-passant file 0..7 or 8 = none",
+      "numeric": "float [B, 10]  castling x4, halfmove/100, fullmove/100, played_as_black, time_control_present, log base time, log increment"
+    },
+    "token_sequence": "70 tokens = 64 squares + 1 global + 5 history moves"
+  },
+  "backbone": {
+    "type": "pre-norm Transformer encoder",
+    "d_model": 128,
+    "layers": 3,
+    "heads": 4,
+    "d_ff": 256,
+    "activation": "gelu",
+    "dropout": 0.1
+  },
+  "output": {
+    "logits": "float [B, 4162] raw move scores",
+    "layout": {
+      "[0, 4096)": "from_square*64 + to_square (normal moves, castling, en passant, queen promotion)",
+      "[4096, 4162)": "underpromotions: 22 rank7->rank8 pawn (from,to) pairs x {rook, bishop, knight}"
+    },
+    "frame": "side-to-move (board mirrored vertically when Black is to move)",
+    "head": "attention-style: score(from,to) = <W_q h_from, W_k h_to>/sqrt(64) + learned 64x64 bias; underpromotion score = pair score + learned per-piece bias"
+  },
+  "legal_move_masking": "logits at illegal indices are replaced by -1e9 before softmax; a row with zero legal moves (mate/stalemate) raises ValueError. Any legal move has a slot, so coverage does not depend on which moves occur in the training data."
+}

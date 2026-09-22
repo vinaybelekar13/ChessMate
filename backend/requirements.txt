@@ -1,0 +1,31 @@
+# ============================================================
+# CORE — plain pip packages, install fine on Windows, no Docker/compiler
+# toolchain needed. This is everything LOCAL GROUNDED MODE needs.
+# ============================================================
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+pydantic-settings==2.5.2
+
+sqlmodel==0.0.22
+# psycopg2-binary only needed if you switch DATABASE_URL to postgresql://
+# psycopg2-binary==2.9.9
+alembic==1.13.2
+
+python-chess==1.999  # verified installable in this build; bumped from the placeholder 1.999 pin
+
+pdfplumber==0.11.4    # local PDF extraction fallback — always available, no OCR
+reportlab==4.2.2      # only used to (re)generate the tests/fixtures synthetic PDF
+
+python-multipart==0.0.9
+httpx==0.27.2
+
+# ============================================================
+# OPTIONAL — production-grade upgrades. None of these block local dev; the
+# app runs and tests pass without any of them installed (see
+# ARCHITECTURE.md §8 and README.md "Dependency fallback matrix").
+# ============================================================
+anthropic==0.34.2     # omit -> LOCAL GROUNDED MODE (no LLM calls, no invented content)
+# magic-pdf           # MinerU's pip package name at time of writing — verify before relying on it
+# docling
+# lightrag-hku        # verify package name/version against https://github.com/HKUDS/LightRAG

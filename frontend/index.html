@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChessMate — Chess Analysis</title>
+  <meta name="description" content="ChessMate — chess analysis powered by Stockfish 18, made with love by Vinay Belekar." />
+  <link rel="stylesheet" href="css/style.css?v=37" />
+  <link rel="stylesheet" href="css/bookcoach.css" />
+  <link rel="stylesheet" href="css/magnus-coach.css" />
+  <script>
+    // Single place the whole frontend points at the ChessMate backend
+    // (FastAPI — see backend/README or run `uvicorn app.main:app`, default
+    // port 8000). Both the Book Coach screens and the new engine/Magnus
+    // client below read this one value.
+    window.CHESSMATE_API_BASE = "http://127.0.0.1:8000";
+    window.BOOK_COACH_API_BASE = window.CHESSMATE_API_BASE;
+  </script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%99%9E%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+  <div class="wrap">
+    <!-- Top bar: brand, mode switch, engine status, quick actions. One compact row, so the
+         board can have the height. -->
+    <header class="topbar">
+      <div class="brand" title="ChessMate — made with ♥ by Vinay Belekar">
+        <span class="brandlogo" data-icon="logo"></span>
+        <div class="brandtxt">
+          <h1>ChessMate</h1>
+          <div class="tagline">Chess analysis, reimagined</div>
+        </div>
+      </div>
+
+      <!-- What are we doing: reviewing a played game, moving pieces freely, or playing
+           the engine? One switch, so each mode can show only what belongs to it. -->
+      <nav class="modebar" id="modeBar" role="tablist" aria-label="Mode">
+        <button class="modetab on" data-mode="analyze" role="tab" aria-selected="true"><span data-icon="analysis"></span><span class="tl">Analyze</span></button>
+        <button class="modetab" data-mode="solo" role="tab" aria-selected="false"><span data-icon="plus"></span><span class="tl">Free board</span></button>
+        <button class="modetab" data-mode="bot" role="tab" aria-selected="false"><span data-icon="swords"></span><span class="tl">Play engine</span></button>
+        <button class="modetab" data-mode="book" role="tab" aria-selected="false"><span data-icon="book"></span><span class="tl">Book Coach</span></button>
+      </nav>
+
+      <div class="topright">
+        <span class="statuschip" id="engineStatus" role="status">starting…</span>
+        <button class="ghost" id="shareBtn" aria-label="Copy a shareable link to this game"><span data-icon="share"></span></button>
+        <button class="ghost on" id="soundToggle" aria-label="Toggle move sounds" aria-pressed="true"><span data-icon="sound"></span></button>
+        <button class="ghost" id="themeToggle" aria-label="Toggle light / dark theme"><span data-icon="theme"></span></button>
+      </div>
+    </header>
+
+    <!-- Play-the-engine setup. Replaces the import card while choosing. -->
+    <section class="card playsetup hidden" id="playSetup">
+      <div class="sectlabel">Play against Stockfish</div>
+      <div class="setuprow">
+        <div class="setupgrp">
+          <label class="lab">You play</label>
+          <div class="sidepick">
+            <button class="pick on" id="pickWhite"><i class="dot w"></i>White</button>
+            <button class="pick" id="pickBlack"><i class="dot b"></i>Black</button>
+          </div>
+        </div>
+        <div class="setupgrp">
+          <label class="lab" for="botElo">Strength</label>
+          <select id="botElo"></select>
+        </div>
+        <button class="primary" id="botStart"><span data-icon="play"></span>Start game</button>
+      </div>
+      <p class="setupnote">It's competitive, so the engine keeps quiet while you play: no eval bar,
+        no lines, no hints. The moment the game ends (or you resign) the full review unlocks.</p>
+    </section>
+
+    <!-- Import -->
+    <section class="card import">
+      <!-- Once a game is open this whole card folds away to one line, so the
+           board sits near the top of the page instead of below the fold. -->
+      <div class="impbar hidden" id="impBar">
+        <span class="impbar-name" id="impBarTxt">–</span>
+        <button class="mini" id="impToggle">Load another game</button>
+      </div>
+
+      <div id="impBody">
+      <div class="acct">
+        <label class="lab" for="userInput">Import from Chess.com or Lichess</label>
+        <div class="acctrow">
+          <select id="siteSel" aria-label="Site to search by username">
+            <option value="chesscom">Chess.com</option>
+            <option value="lichess">Lichess</option>
+          </select>
+          <input type="text" id="userInput" spellcheck="false" autocomplete="username"
+                 placeholder="your username — or paste a link to a single game" />
+          <button class="primary" id="loadUser">Load</button>
+        </div>
+        <div class="accthint">
+          A username lists your recent games. A <b>game link</b> opens that one game —
+          any <span class="mono">lichess.org/…</span> link, or a <span class="mono">chess.com</span>
+          link to a game of yours (Chess.com only serves games by player, so search your username once first).
+        </div>
+        <div class="acctmsg hidden" id="acctMsg"></div>
+        <div class="gamelist hidden" id="gameList"></div>
+      </div>
+
+      <div class="impdiv"><span>or paste a game</span></div>
+
+      <div class="import-grid">
+        <div class="imp-pgn">
+          <label class="lab">Game (PGN)</label>
+          <textarea id="pgnInput" spellcheck="false" placeholder="Paste a PGN here…"></textarea>
+          <div class="btnrow">
+            <button class="primary" id="loadPgn">Load PGN</button>
+            <button id="loadSample">Load sample</button>
+            <label class="filebtn">Upload .pgn<input type="file" id="pgnFile" accept=".pgn,.txt" hidden /></label>
+          </div>
+        </div>
+        <div class="imp-side">
+          <label class="lab">Position (FEN)</label>
+          <input type="text" id="fenInput" spellcheck="false" placeholder="rnbqkbnr/pppppppp/8/…" />
+          <button id="loadFen">Load FEN</button>
+          <div class="scanrow">
+            <label class="filebtn"><span data-icon="camera"></span>Scan a screenshot<input type="file" id="scanFile" accept="image/*" hidden /></label>
+            <button id="scanBtn" class="mini">Set up by hand</button>
+          </div>
+          <div class="scanhint">Crop the screenshot to <b>just the 8×8 board</b> (no app window or coordinates) — a Lichess/Chess.com board reads best. It's read as best we can, then you confirm and fix on an editable board.</div>
+        </div>
+      </div>
+      </div><!-- /impBody -->
+    </section>
+
+    <!-- Confirm-board: where a scanned screenshot (or a hand-built position) is
+         corrected and sent to analysis. Hidden until opened. -->
+    <section class="card editor hidden" id="editorCard">
+      <div class="sectlabel">Set up the position</div>
+      <p class="editnote" id="editNote"></p>
+      <div class="editmain">
+        <div class="editboardwrap"><div class="board" id="editorBoard"></div></div>
+        <div class="editside">
+          <div class="palette" id="palette"></div>
+          <div class="editrow">
+            <span class="lab">To move</span>
+            <div class="sidepick">
+              <button class="pick on" id="edWhite"><i class="dot w"></i>White</button>
+              <button class="pick" id="edBlack"><i class="dot b"></i>Black</button>
+            </div>
+          </div>
+          <div class="editbtns">
+            <button id="edFlip" class="mini"><span data-icon="flip"></span>Flip</button>
+            <button id="edClear" class="mini">Clear</button>
+            <button id="edStart" class="mini">Start position</button>
+          </div>
+          <div class="editactions">
+            <button class="primary" id="edAnalyze">Analyze this position</button>
+            <button id="edCancel" class="mini">Cancel</button>
+          </div>
+          <div class="editerr hidden" id="edErr"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- The analysis workspace. Three real columns — board | analysis | coach & report —
+         so a tall card in one can never push a row open in another. -->
+    <main class="grid" id="workspace">
+
+      <!-- ===== BOARD ===== -->
+      <div class="leftcol">
+        <section class="card boardcard" aria-label="Board">
+          <div class="playerline top">
+            <span class="chip dark"></span>
+            <span class="nm" id="pBName">Black</span><span class="elo" id="pBElo"></span>
+            <span class="captured" id="capB"></span>
+          </div>
+
+          <div class="boardrow">
+            <div class="evalbar" role="img" aria-label="Evaluation bar"><div class="evalfill" id="evalFill"></div><span class="evalnum bot" id="evalNum">+0.20</span></div>
+            <div class="board" id="board" role="application" aria-label="Chess board"></div>
+          </div>
+
+          <div class="playerline bot">
+            <span class="chip light"></span>
+            <span class="nm" id="pWName">White</span><span class="elo" id="pWElo"></span>
+            <span class="captured" id="capW"></span>
+          </div>
+
+          <div class="controls" role="toolbar" aria-label="Board controls">
+            <button id="bStart" aria-label="First move (Home)"><span data-icon="first"></span></button>
+            <button id="bPrev" aria-label="Previous move (←)"><span data-icon="prev"></span></button>
+            <button id="bNext" aria-label="Next move (→)"><span data-icon="next"></span></button>
+            <button id="bEnd" aria-label="Last move (End)"><span data-icon="last"></span></button>
+            <span class="ctlsep" aria-hidden="true"></span>
+            <button id="bFlip" aria-label="Flip board (f)"><span data-icon="flip"></span></button>
+            <button id="bArrows" class="on" aria-label="Show engine arrows" aria-pressed="true"><span data-icon="eye"></span></button>
+          </div>
+        </section>
+      </div>
+
+      <!-- ===== ANALYSIS: status, engine, this move, the move list ===== -->
+      <div class="midcol">
+        <!-- Dedicated training mode: this bar replaces the analysis panels (see body.training-mode) -->
+        <div class="trainbar hidden" id="trainBar">
+          <button id="trainBack" class="mini"><span data-icon="prev"></span>Analysis</button>
+          <span class="trainbar-title"><span data-icon="target"></span>TRAINING</span>
+          <span class="trainbar-prog mono" id="trainProg"></span>
+        </div>
+        <!-- Free-board / play-the-engine status: what's happening, and the one action
+             that belongs to it (reset / resign / rematch). -->
+        <div class="playbar hidden" id="playBar">
+          <span class="play-txt" id="playTxt"></span>
+          <button class="mini hidden" id="soloReset"><span data-icon="reset"></span>Reset board</button>
+          <button class="mini hidden" id="botResign"><span data-icon="flag"></span>Resign</button>
+          <button class="mini hidden" id="botRematch"><span data-icon="reset"></span>Rematch</button>
+        </div>
+
+        <section class="card review">
+          <div class="ghead">
+            <h2 id="hdrTitle">–</h2>
+            <div class="ghmeta" id="hdrMeta"></div>
+            <div class="opening hidden" id="openingName"></div>
+          </div>
+          <div class="rev-head">
+            <button class="primary big" id="reviewBtn" disabled><span data-icon="analysis"></span><span id="reviewLabel">Analyze game</span></button>
+            <!-- depth belongs with the analysis, not with the import form (which folds away) -->
+            <div class="depthrow">
+              <label class="lab" for="depthSel">Depth</label>
+              <select id="depthSel">
+                <option value="12">12 · fastest</option>
+                <option value="14">14 · fast</option>
+                <option value="16">16 · balanced</option>
+                <option value="18">18 · deep</option>
+                <option value="20">20 · deeper</option>
+                <option value="22">22 · deepest</option>
+                <option value="26">26 · maximum (slow)</option>
+              </select>
+            </div>
+          </div>
+          <div class="progress hidden" id="progress">
+            <div class="pbar"><div class="pfill" id="progressBar"></div></div>
+            <div class="ptxt" id="progressTxt"></div>
+          </div>
+          <!-- the headline number stays up here; the full breakdown is in the report column -->
+          <div class="accstrip hidden" id="accStrip"></div>
+        </section>
+
+        <!-- Engine: evaluation is the biggest thing, depth is secondary, lines are compact. -->
+        <section class="card live" id="live">
+          <div class="live-head">
+            <button class="toggle on" id="liveToggle" aria-pressed="true"><span data-icon="engine"></span><span id="liveToggleTxt">Engine on</span></button>
+            <span class="bdg neutral" id="liveBadge">READY</span>
+            <div class="live-meta"><span class="mono" id="liveEval">–</span><span class="dim mono" id="liveDepth"></span></div>
+            <button class="ghost sm" id="linesFold" aria-label="Collapse engine lines" aria-expanded="true"><span data-icon="up"></span></button>
+          </div>
+          <div class="livelines" id="liveLinesBox"></div>
+          <div class="live-foot"><span id="engineName">Stockfish</span> · <select id="linesSel" class="tinysel" aria-label="Number of engine lines">
+            <option value="1">1 line</option><option value="2">2 lines</option><option value="3">3 lines</option><option value="4">4 lines</option>
+          </select></div>
+        </section>
+
+        <!-- ?coach=v2 training task: shown INSTEAD of the move card while practising one
+             position (right column has the exercise list). Additive - invisible otherwise. -->
+        <section class="card trainbanner hidden" id="trainBanner" aria-live="polite"></section>
+
+        <!-- One move, one card. The verdict, the engine's better move, the tactic it
+             creates and the walk-through of it are a single thought, so they sit together. -->
+        <section class="card coach" id="moveCard" aria-live="polite">
+          <div class="readout">
+            <div class="cglyph" id="readGlyph">○</div>
+            <div class="rtxt">
+              <div class="rmove" id="readMove">Starting position</div>
+              <div class="rsub" id="readSub">Use ← → keys or click a move.</div>
+            </div>
+          </div>
+
+          <div class="assess hidden" id="assessBox">
+            <div class="assess-note" id="assessNote"></div>
+            <div class="assess-best" id="assessBest"></div>
+          </div>
+          <div class="tacticbox hidden" id="tacticBox"></div>
+
+          <!-- Opens in place of the "Explain" button that summons it. -->
+          <div class="explainbar hidden" id="explainBar">
+            <button class="stepbtn" id="explainPrev" aria-label="Back"><span data-icon="prev"></span></button>
+            <span class="explain-txt" id="explainTxt"></span>
+            <button class="stepbtn" id="explainNext" aria-label="Forward"><span data-icon="next"></span></button>
+            <button id="explainDone" class="mini done"><span data-icon="check"></span>Got it</button>
+          </div>
+        </section>
+
+        <div class="explorebar hidden" id="exploreBar">
+          <span class="expl-label">Line</span>
+          <span class="expl-txt mono" id="exploreTxt"></span>
+          <button id="returnGame" class="mini"><span data-icon="reset"></span>Return to game</button>
+        </div>
+
+        <!-- Moves: takes whatever height the column has left, scrolls inside itself. -->
+        <section class="card movescard">
+          <div class="sectlabel"><span data-icon="list"></span>Moves</div>
+          <div class="movelist" id="movelist" role="list"></div>
+        </section>
+
+        <!-- What HUMANS do here, next to what the engine says is best. Opening moves
+             at a chosen rating from Lichess's database; a perfect tablebase verdict
+             once the board is down to seven pieces. Free, key-less, CORS-open APIs. -->
+        <section class="card explorer hidden" id="explorerCard">
+          <div class="explorer-head">
+            <span class="sectlabel" id="explorerTitle"><span data-icon="book"></span>Opening explorer</span>
+            <select id="explorerRating" class="tinysel" aria-label="Rating band"></select>
+          </div>
+          <div class="explorer-body" id="explorerBody"></div>
+          <p class="explorer-note" id="explorerNote"></p>
+        </section>
+      </div>
+
+      <!-- ===== COACH & REPORT ===== -->
+      <div class="rightcol" id="rightCol" data-tab="coach">
+        <div class="rtabs hidden" id="rightTabs" role="tablist" aria-label="Coach and training">
+          <button class="rtab on" data-rtab="coach" role="tab" aria-selected="true"><span data-icon="coach"></span>AI Coach</button>
+          <button class="rtab" data-rtab="training" role="tab" aria-selected="false"><span data-icon="target"></span>Training<span class="rcount" id="trainCount"></span></button>
+        </div>
+        <!-- Before there is a review to coach from: say what will appear here, instead of leaving a void. -->
+        <section class="card advice rempty" id="coachEmpty">
+          <div class="sectlabel"><span data-icon="coach"></span>AI Coach</div>
+          <p class="cv2-p">Analyze the game and your coach will show up here: where the game turned, the mistakes worth fixing, the ideas behind them &mdash; and positions to practise.</p>
+          <p class="cv2-p rempty-steps"><span class="bdg neutral">1</span> Load a game <span class="bdg neutral">2</span> Press <b>Analyze game</b> <span class="bdg neutral">3</span> Practise your mistakes</p>
+        </section>
+
+        <!-- Plain-English coaching: one paragraph per side saying where the game turned
+             and what to drill. Built from the review, no extra engine work. -->
+        <section class="card advice hidden" id="coachCard">
+          <div class="sectlabel"><span data-icon="coach"></span>What to work on</div>
+          <div class="coachbody" id="coachBody"></div>
+        </section>
+
+        <!-- AI Coach: structured coaching built from the domain layer
+             (src/chess/coach.js) - summary, strengths, weaknesses, recurring
+             cross-game patterns, critical mistakes you can click to jump to,
+             concepts, recommendations and questions. -->
+        <section class="card advice cv2 hidden" id="coachV2Card">
+          <div class="sectlabel"><span data-icon="coach"></span>AI Coach</div>
+          <div class="magnus-bubble-mount" id="magnusBubbleMount"></div>
+          <div class="coachbody" id="coachV2Body"></div>
+        </section>
+
+        <!-- Personalized training queue, generated from this game's own
+             reviewed positions (src/chess/training.js) - each item's FEN is
+             a position actually reached, never invented. -->
+        <section class="card advice cv2 hidden" id="trainingCard">
+          <div class="sectlabel"><span data-icon="target"></span>Training</div>
+          <div class="coachbody" id="trainingBody"></div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- Book Coach mode: a sibling of the analysis workspace, shown/hidden by
+         setMode("book") in js/app.js. Uses the existing Book Coach frontend
+         screens (js/bookcoach/*.js) via one small entry point — see
+         js/integration/book-coach-entry.js. Nothing about #workspace above
+         is touched when this is active. -->
+    <section class="card hidden" id="bookCoachRoot" aria-label="Book Coach"></section>
+
+    <!-- Secondary analysis: sits UNDER the workspace so it never competes with the
+         board / moves / coach. Reachable by scrolling; nothing here is needed to play. -->
+    <section class="lower" id="lower" aria-label="Game statistics">
+      <section class="card graphcard hidden" id="graphCard">
+        <div class="sectlabel"><span data-icon="chart"></span>Evaluation over the game</div>
+        <canvas id="evalGraph" class="evalgraph" aria-label="Evaluation graph. Click to jump to a move."></canvas>
+      </section>
+
+      <section class="card summary hidden" id="summary">
+        <div class="sectlabel"><span data-icon="list"></span>Move breakdown</div>
+        <div class="chead"><span>W</span><span>B</span></div>
+        <div class="counts" id="counts"></div>
+        <p class="motifnote hidden" id="motifNote"></p>
+        <div class="ratingnote">
+          The <b>game rating</b> is a rough read of this one game, not the player's Elo,
+          so it shows as a <b>provisional band</b> rather than a single number. Checked
+          against 64 real games, single-game estimates miss the true rating by several
+          hundred points either way (a quiet game reads too strong, a sharp one too
+          weak), and the band is only this game's own spread. Trends across many games
+          mean something; one number does not.
+        </div>
+      </section>
+
+      <!-- One accuracy number tells you how well you played. Three tell you WHERE
+           you played badly - the only version of it you can act on. -->
+      <section class="card phases hidden" id="phases">
+        <div class="sectlabel"><span data-icon="chart"></span>Accuracy by phase</div>
+        <div class="chead"><span>W</span><span>B</span></div>
+        <div class="phaserows" id="phaseRows"></div>
+        <p class="phasenote">Book moves are excluded: they are theory you remembered, not
+          moves you had to find. The small number is how many moves each accuracy is based on.</p>
+      </section>
+
+      <section class="card graphcard hidden" id="timeCard">
+        <div class="sectlabel"><span data-icon="chart"></span>Time spent per move</div>
+        <canvas id="timeGraph" class="evalgraph" aria-label="Time spent per move. Click to jump to a move."></canvas>
+        <p class="timenote hidden" id="timeNote"></p>
+      </section>
+
+      <section class="card legendcard">
+        <div class="sectlabel"><span data-icon="info"></span>Move classification</div>
+        <div class="legend" id="legend"></div>
+        <p class="note">
+          Evaluations by <b id="footEngine">Stockfish 18 (lite)</b> from White's point of view (+ favors White).
+          Accuracy and labels are engine-derived estimates. <b>Brilliant</b> = a sound sacrifice;
+          <b>Great</b> = a critical only-move. Nothing leaves your device &mdash; the engine runs locally via WebAssembly.
+        </p>
+      </section>
+
+      <div class="sharebar hidden" id="shareBar">
+        <div class="sharetxt">
+          <b>Want to share this game?</b>
+          <span class="sharekind" id="shareKind"></span>
+        </div>
+        <!-- shown once the game has been reviewed: there is nothing to report before that -->
+        <button class="mini hidden" id="cardCopyBtn" aria-label="Copy the game report to the clipboard as an image"><span data-icon="copy"></span>Copy image</button>
+        <button class="mini hidden" id="cardBtn" aria-label="Download the game report as an image"><span data-icon="download"></span>Save image</button>
+        <button class="primary mini" id="shareBtn2"><span data-icon="link"></span>Copy link</button>
+        <span class="sharenote hidden" id="shareNote"></span>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <span><strong>ChessMate</strong> · Made with ♥ by Vinay Belekar</span>
+      <span>Powered by <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> (GPLv3) compiled to WebAssembly, and <a href="https://github.com/jhlywa/chess.js">chess.js</a>.</span>
+    </footer>
+  </div>
+
+  <script type="module" src="js/app.js?v=37"></script>
+</body>
+</html>
