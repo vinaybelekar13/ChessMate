@@ -1,0 +1,212 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChessMate Report</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/report.css">
+    <link rel="stylesheet" href="css/chesscom-report-theme.css">
+</head>
+<body class="report-page">
+
+<header class="report-header">
+    <div>
+        <div class="report-kicker">CHESSMATE</div>
+        <h1>Chess Report</h1>
+        <p id="report-subtitle">300-game performance profile</p>
+    </div>
+
+    <div class="report-actions">
+        <button id="refresh-report" class="report-refresh">
+            <span id="refresh-icon">?</span>
+            Refresh Games
+        </button>
+        <a href="index.html" class="report-back">Back to Home</a>
+    </div>
+</header>
+
+
+
+<main class="report-main">
+
+    <section class="report-hero">
+        <div>
+            <span class="section-label">300-GAME PROFILE</span>
+            <h2 id="profile-title">Your Chess Performance</h2>
+            <p id="profile-summary">
+                Loading your latest chess analytics...
+            </p>
+        </div>
+
+        <div class="snapshot">
+            <span>SNAPSHOT</span>
+            <strong id="snapshot-id">--</strong>
+        </div>
+    </section>
+
+    <section class="stat-grid" id="headline-stats">
+        <article class="stat-card">
+            <span>ACCURACY</span>
+            <strong id="stat-accuracy">--</strong>
+            <small>average move accuracy</small>
+        </article>
+
+        <article class="stat-card">
+            <span>AVERAGE CPL</span>
+            <strong id="stat-cpl">--</strong>
+            <small>centipawn loss</small>
+        </article>
+
+        <article class="stat-card">
+            <span>WINS</span>
+            <strong id="stat-wins">--</strong>
+            <small id="stat-win-rate">-- win rate</small>
+        </article>
+
+        <article class="stat-card">
+            <span>LOSSES</span>
+            <strong id="stat-losses">--</strong>
+            <small id="stat-draws">-- draws</small>
+        </article>
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <span class="section-label">PHASE PERFORMANCE</span>
+                <h3>Where your games break down</h3>
+            </div>
+            <span class="panel-note">accuracy + CPL</span>
+        </div>
+
+        <div id="phase-list" class="phase-list"></div>
+    </section>
+
+    <section class="two-column">
+
+        <section class="panel">
+            <div class="panel-heading">
+                <div>
+                    <span class="section-label">COLOR PERFORMANCE</span>
+                    <h3>White vs Black</h3>
+                </div>
+            </div>
+
+            <div id="color-list" class="comparison-list"></div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-heading">
+                <div>
+                    <span class="section-label">MOVE QUALITY</span>
+                    <h3>Classification profile</h3>
+                </div>
+            </div>
+
+            <div id="classification-list" class="classification-list"></div>
+        </section>
+
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <span class="section-label">WEAKNESS MAP</span>
+                <h3>Recurring tactical and positional problems</h3>
+            </div>
+            <span id="motif-total" class="panel-note">-- events</span>
+        </div>
+
+        <div id="motif-list" class="motif-list"></div>
+    </section>
+
+    <section class="two-column">
+
+        <section class="panel">
+            <div class="panel-heading">
+                <div>
+                    <span class="section-label">OPENINGS</span>
+                    <h3>Most played openings</h3>
+                </div>
+            </div>
+
+            <div id="opening-list" class="rank-list"></div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-heading">
+                <div>
+                    <span class="section-label">TIME CONTROLS</span>
+                    <h3>Performance by format</h3>
+                </div>
+            </div>
+
+            <div id="time-control-list" class="rank-list"></div>
+        </section>
+
+    </section>
+
+    <section class="two-column">
+
+        <section class="panel">
+            <div class="panel-heading">
+                <div>
+                    <span class="section-label">GAME ENDINGS</span>
+                    <h3>How games finish</h3>
+                </div>
+            </div>
+
+            <div id="termination-list" class="termination-list"></div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-heading">
+                <div>
+                    <span class="section-label">TRAINING</span>
+                    <h3>Training positions</h3>
+                </div>
+            </div>
+
+            <div id="training-card" class="training-card"></div>
+        </section>
+
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <span class="section-label">RECENT GAMES</span>
+                <h3>Latest games in the rolling 300</h3>
+            </div>
+            <span class="panel-note">newest first</span>
+        </div>
+
+        <div class="game-table-wrap">
+            <table class="game-table">
+                <thead>
+                    <tr>
+                        <th>DATE</th>
+                        <th>OPPONENT</th>
+                        <th>COLOR</th>
+                        <th>RESULT</th>
+                        <th>OPENING</th>
+                        <th>ACC.</th>
+                        <th>CPL</th>
+                        <th>BLUNDERS</th>
+                    </tr>
+                </thead>
+                <tbody id="game-table-body"></tbody>
+            </table>
+        </div>
+    </section>
+
+</main>
+
+<div id="report-status" class="report-status"></div>
+
+<script src="js/magnus-coach.js"></script>
+<script src="js/report.js"></script>
+</body>
+</html>
+

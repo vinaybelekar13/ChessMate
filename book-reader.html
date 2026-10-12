@@ -1,0 +1,796 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>ChessMate Book Reader</title>
+
+    <meta
+        name="description"
+        content="ChessMate Book Reader"
+    >
+
+    <!-- Original Barabosik global styles -->
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- Clean Book Reader layout -->
+    <link rel="stylesheet" href="css/book-reader.css">
+</head>
+
+<body class="book-reader-page">
+
+    <!-- Floating back button only -->
+    <button
+        class="reader-back"
+        id="backToChessMate"
+        type="button"
+        aria-label="Back to ChessMate"
+        title="Back to ChessMate"
+    >
+        ←
+    </button>
+
+
+        <!-- CHESSMATE BOOK LIBRARY -->
+    <button
+        class="library-menu-button"
+        id="libraryMenuButton"
+        type="button"
+        aria-label="Open Book Library"
+        title="Book Library"
+    >
+        ☰
+    </button>
+
+    <div
+        class="library-overlay"
+        id="libraryOverlay"
+        aria-hidden="true"
+    >
+        <div
+            class="library-backdrop"
+            id="libraryBackdrop"
+        ></div>
+
+        <aside
+            class="library-drawer"
+            id="libraryDrawer"
+        >
+            <div class="library-header">
+
+                <div>
+                    <div class="library-title">
+                        Library
+                    </div>
+
+                    <div class="library-subtitle">
+                        Your chess books
+                    </div>
+                </div>
+
+                <button
+                    class="library-close-button"
+                    id="libraryCloseButton"
+                    type="button"
+                    aria-label="Close Library"
+                >
+                    ×
+                </button>
+
+            </div>
+
+            <div class="library-count">
+                <span>Your Books</span>
+                <span id="libraryCount">0 / 15</span>
+            </div>
+
+            <div
+                class="library-books"
+                id="libraryBooks"
+            ></div>
+
+            <div
+                class="library-empty"
+                id="libraryEmpty"
+                hidden
+            >
+                No books found.
+            </div>
+
+            <div class="library-footer">
+
+                <button
+                    class="library-upload-button"
+                    id="libraryUploadButton"
+                    type="button"
+                >
+                    + Upload Book
+                </button>
+
+                <div class="library-limit">
+                    Maximum 15 books
+                </div>
+
+            </div>
+
+        </aside>
+    </div>
+<main class="book-reader-main">
+
+        <!-- ==================================================
+             LEFT: BARABOSIK CHESS BOARD
+             ================================================== -->
+
+        <section class="analysis-panel">
+
+            <div class="analysis-header">
+
+                <div>
+                    <div class="panel-title">
+                        Position
+                    </div>
+
+                    <div class="panel-subtitle">
+                        Detected position
+                    </div>
+                </div>
+
+                <button
+                    class="reader-icon-button"
+                    data-action="reset"
+                    type="button"
+                    title="Reset position"
+                    aria-label="Reset position"
+                >
+                    ↺
+                </button>
+
+            </div>
+
+
+            <div class="reader-board-wrapper">
+
+                <div id="readerTopCaptured" class="chessmate-captured-bar reader-material-bar"></div>
+
+                <div class="boardrow">
+
+                    <!-- EXACT BARABOSIK BOARD ROOT -->
+                    <div class="evalbar" id="readerEvalBar">
+                        <div class="evalfill" id="readerEvalFill"></div>
+                        <span class="evalnum bot" id="readerEvalNum">+0.2</span>
+                    </div>
+
+                    <div class="chessmate-board-shell">
+                        <div
+                            id="readerBoard"
+                            class="board"
+                            aria-label="Chess board"
+                        ></div>
+
+                        <div
+                            id="readerGameOverlay"
+                            class="chessmate-game-overlay"
+                            aria-hidden="true"
+                        >
+                            <div class="chessmate-game-overlay-card">
+                                <div
+                                    id="readerGameOverlayTitle"
+                                    class="chessmate-game-overlay-title"
+                                ></div>
+
+                                <div
+                                    id="readerGameOverlaySubtitle"
+                                    class="chessmate-game-overlay-subtitle"
+                                ></div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div id="readerBottomCaptured" class="chessmate-captured-bar reader-material-bar"></div>
+
+            </div>
+
+
+            <!-- Board controls -->
+
+            <!-- CHESSMATE BOARD CONTROLS -->
+
+<div class="chessmate-board-controls">
+
+    <div class="chessmate-move-controls">
+
+        <button
+            class="button-90"
+            data-action="first"
+            type="button"
+            title="First position"
+        >⏮</button>
+
+        <button
+            class="button-90"
+            data-action="prev"
+            type="button"
+            title="Previous move"
+        >◀</button>
+
+        <button
+            class="button-90"
+            data-action="next"
+            type="button"
+            title="Next move"
+        >▶</button>
+
+        <button
+            class="button-90"
+            data-action="last"
+            type="button"
+            title="Last position"
+        >⏭</button>
+
+    </div>
+
+    <div class="chessmate-board-actions">
+            <button
+                id="resetBoardButton"
+                class="button-90"
+                type="button"
+                title="Reset board to starting position"
+            >Reset</button>
+
+        <button
+            class="button-90"
+            data-action="flip"
+            type="button"
+        >Flip</button>
+
+        <button
+            class="button-90"
+            data-action="clear"
+            type="button"
+        >Clear</button>
+    <button
+        class="btn-donate"
+        id="scanPositionButton"
+        type="button"
+        title="Scan a chess position from your screen"
+    >⛶</button>
+
+        <div class="side-to-move-control" aria-label="Side to move">
+            <span
+                id="sideToMoveLabel"
+                class="side-to-move-label"
+            >White</span>
+
+            <div class="side-to-move-toggle">
+                <input
+                    id="sideToMoveToggle"
+                    type="checkbox"
+                    aria-label="Toggle side to move"
+                />
+                <label for="sideToMoveToggle"></label>
+            </div>
+        </div>
+<!-- ============================================================
+     CHESS POSITION SCREEN SNIPPER
+     ============================================================ -->
+
+<div
+    id="positionSnipperOverlay"
+    class="position-snipper-overlay"
+    aria-hidden="true"
+>
+    <div class="position-snipper-topbar">
+        <div class="position-snipper-title">
+            Scan Chess Position
+        </div>
+
+        <div class="position-snipper-hint">
+            Drag around the chessboard
+        </div>
+
+        <button
+            id="positionSnipperCancel"
+            class="position-snipper-cancel"
+            type="button"
+        >
+            Cancel
+        </button>
+    </div>
+
+    <div
+        id="positionSnipperSelection"
+        class="position-snipper-selection"
+        hidden
+    >
+        <div class="position-snipper-size" id="positionSnipperSize">
+            0 × 0
+        </div>
+    </div>
+</div>
+        <div class="magnus-control" id="magnusControl">
+    <span class="magnus-title">Magnus</span>
+
+    <div class="toggleWrapper magnus-toggle-wrapper">
+        <input
+            class="input"
+            id="magnusToggle"
+            type="checkbox"
+            checked
+        />
+
+        <label class="toggle" for="magnusToggle">
+            <span class="toggle__handler">
+                <span class="crater crater--1"></span>
+                <span class="crater crater--2"></span>
+                <span class="crater crater--3"></span>
+            </span>
+
+            <span class="star star--1"></span>
+            <span class="star star--2"></span>
+            <span class="star star--3"></span>
+            <span class="star star--4"></span>
+            <span class="star star--5"></span>
+            <span class="star star--6"></span>
+        </label>
+    </div>
+</div>
+
+</div>
+<div class="board-tools">
+
+            </div>
+
+
+            <!-- Move navigation -->
+
+            <div class="move-controls">
+
+                <button
+                    class="move-control"
+                    type="button"
+                    title="Last move"
+                    aria-label="Last move"
+                >
+                    ⏭
+                </button>
+
+            </div>
+
+
+            <!-- Move notation -->
+
+            <div class="move-notation-panel">
+
+                <div class="move-notation-header">
+
+                    <span>
+                        Moves
+                    </span>
+
+                    <span
+                        class="move-notation-count"
+                        id="moveNotationCount"
+                    >
+                        0 moves
+                    </span>
+
+                </div>
+
+                <div
+                    class="move-notation-list"
+                    id="moveNotation"
+                >
+                    <div class="move-notation-empty">
+                        No moves played yet
+                    </div>
+                </div>
+
+            </div>
+
+
+            <!-- FEN -->
+
+            <div class="position-info">
+
+                <div class="position-info-title">
+                    FEN
+                </div>
+
+                <div
+                    class="position-fen"
+                    id="fenDisplay"
+                >
+                    Starting position
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ==================================================
+             DRAGGABLE DIVIDER
+             ================================================== -->
+
+        <div
+            class="reader-resizer"
+            id="readerResizer"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize book and chess board"
+            tabindex="0"
+        ></div>
+
+
+        <!-- ==================================================
+             RIGHT: ORIGINAL PDF
+             ================================================== -->
+
+        <section class="book-panel">
+
+            <div class="panel-header">
+
+                <div>
+
+                    <div class="panel-title">
+                        Improve Your Chess Calculation
+                    </div>
+
+                    <div class="panel-subtitle">
+                        Original PDF
+                    </div>
+
+                </div>
+
+                <div class="page-indicator">
+
+                    <input
+    class="page-current"
+    id="pageNumberInput"
+    type="number"
+    min="1"
+    value="1"
+    aria-label="Go to page"
+    title="Type a page number and press Enter"
+/>
+
+                    <span>
+                        /
+                    </span>
+
+                    <span class="page-total">
+                        585
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="book-page-container" id="pdfViewerContainer">
+
+    <div class="pdfjs-toolbar">
+
+        <button
+            id="pdfPrevPage"
+            class="pdfjs-tool"
+            type="button"
+            title="Previous page"
+        >‹</button>
+
+        <span class="pdfjs-page-status">
+            <span id="pdfCurrentPage">1</span>
+            <span>/</span>
+            <span id="pdfTotalPages">585</span>
+        </span>
+
+        <button
+            id="pdfNextPage"
+            class="pdfjs-tool"
+            type="button"
+            title="Next page"
+        >›</button>
+
+        <span class="pdfjs-divider"></span>
+
+        <button
+            id="pdfZoomOut"
+            class="pdfjs-tool"
+            type="button"
+            title="Zoom out"
+        >−</button>
+
+        <span
+            id="pdfZoomValue"
+            class="pdfjs-zoom-value"
+        >100%</span>
+
+        <button
+            id="pdfZoomIn"
+            class="pdfjs-tool"
+            type="button"
+            title="Zoom in"
+        >+</button>
+
+        <button
+            id="pdfFitPage"
+            class="pdfjs-tool"
+            type="button"
+            title="Fit page"
+        >⛶</button>
+
+    </div>
+
+    <div
+        class="pdfjs-page-area"
+        id="pdfPageArea"
+    >
+        <canvas
+            id="pdfCanvas"
+            aria-label="Chess book PDF page"
+        ></canvas>
+    </div>
+
+</div>
+
+
+            <!-- PDF page controls -->
+
+            <div class="book-controls">
+
+    <button
+        class="button-86"
+        role="button"
+        type="button"
+        title="Super Next Move"
+    >
+        ⏭
+    </button>
+
+</div>
+
+        </section>
+
+            
+        <!-- ==================================================
+             MAGNUS COACH
+             Dedicated analysis / LLM workspace
+             ================================================== -->
+        <aside
+            class="magnus-book-coach"
+            id="magnusBookCoach"
+            aria-label="Magnus Coach"
+        >
+
+            <div class="magnus-book-coach-header">
+
+                <div class="magnus-book-coach-identity">
+
+                    <div class="magnus-book-avatar">
+                        <img
+                            src="assets/magnus/magnus-coach.png"
+                            alt="Magnus Coach"
+                            onerror="this.style.display='none'"
+                        >
+                        <span>♞</span>
+                    </div>
+
+                    <div>
+                        <div class="magnus-book-coach-title">
+                            Magnus Coach
+                        </div>
+
+                        <div class="magnus-book-coach-subtitle">
+                            Analyze · Explain · Improve
+                        </div>
+                    </div>
+
+                </div>
+
+                <div
+                    class="magnus-book-status"
+                    id="magnusBookStatus"
+                >
+                    READY
+                </div>
+
+            </div>
+
+
+            <!-- ENGINE EVALUATION -->
+
+            <section class="magnus-book-section">
+
+                <div class="magnus-book-section-title">
+                    Current Position
+                </div>
+
+                <div class="magnus-book-evaluation">
+
+                    <div
+                        class="magnus-book-eval-value"
+                        id="magnusBookEval"
+                    >
+                        +0.0
+                    </div>
+
+                    <div class="magnus-book-eval-bar">
+                        <div
+                            class="magnus-book-eval-fill"
+                            id="magnusBookEvalFill"
+                        ></div>
+                    </div>
+
+                </div>
+
+                <div
+                    class="magnus-book-eval-label"
+                    id="magnusBookEvalLabel"
+                >
+                    Waiting for analysis
+                </div>
+
+            </section>
+
+
+            <!-- BEST MOVE -->
+
+            <section class="magnus-book-section">
+
+                <div class="magnus-book-section-title">
+                    Best Move
+                </div>
+
+                <div
+                    class="magnus-book-best-move"
+                    id="magnusBookBestMove"
+                >
+                    <span class="magnus-book-best-icon">★</span>
+
+                    <div>
+                        <strong id="magnusBookBestMoveText">
+                            —
+                        </strong>
+
+                        <span id="magnusBookBestMoveReason">
+                            Engine analysis will appear here
+                        </span>
+                    </div>
+                </div>
+
+            </section>
+
+
+            <!-- ALTERNATIVE MOVES -->
+
+            <section class="magnus-book-section">
+
+                <div class="magnus-book-section-title">
+                    Candidate Moves
+                </div>
+
+                <div
+                    class="magnus-book-candidates"
+                    id="magnusBookCandidates"
+                >
+
+                    <div class="magnus-book-candidate">
+                        <span>1</span>
+                        <strong>—</strong>
+                        <small>—</small>
+                    </div>
+
+                    <div class="magnus-book-candidate">
+                        <span>2</span>
+                        <strong>—</strong>
+                        <small>—</small>
+                    </div>
+
+                    <div class="magnus-book-candidate">
+                        <span>3</span>
+                        <strong>—</strong>
+                        <small>—</small>
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- COACH EXPLANATION -->
+
+            <section class="magnus-book-section">
+
+                <div class="magnus-book-section-title">
+                    Coach Explanation
+                </div>
+
+                <div
+                    class="magnus-book-explanation"
+                    id="magnusBookExplanation"
+                >
+                    Make a move on the board or select a position
+                    from the book. Magnus will explain what matters
+                    in the position and why.
+                </div>
+
+            </section>
+
+
+            <!-- LLM CHAT -->
+
+            <section class="magnus-book-chat">
+
+                <div class="magnus-book-section-title">
+                    Ask Magnus
+                </div>
+
+                <div
+                    class="magnus-book-chat-messages"
+                    id="magnusBookChatMessages"
+                >
+                    <div class="magnus-book-chat-empty">
+                        Ask about the position, calculation,
+                        plans, mistakes, or the ideas from this page.
+                    </div>
+                </div>
+
+                <div class="magnus-book-chat-input-row">
+
+                    <input
+                        id="magnusBookChatInput"
+                        type="text"
+                        placeholder="Ask Magnus..."
+                        autocomplete="off"
+                    >
+
+                    <button
+                        id="magnusBookChatSend"
+                        type="button"
+                        aria-label="Send"
+                    >
+                        ↑
+                    </button>
+
+                </div>
+
+            </section>
+
+        </aside>
+
+</main>
+
+
+    <script
+        type="module"
+        src="js/book-reader.js?v=position-snipper-v1"
+    ></script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

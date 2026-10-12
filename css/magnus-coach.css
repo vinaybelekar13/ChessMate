@@ -1,0 +1,286 @@
+﻿/* =========================================================
+   ChessMate — Magnus Coach Animation
+   ========================================================= */
+
+.magnus-coach {
+    --magnus-size: 116px;
+
+    position: relative;
+
+    width: var(--magnus-size);
+    min-width: var(--magnus-size);
+    height: var(--magnus-size);
+
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+
+    overflow: visible;
+
+    transform-origin: center bottom;
+
+    animation:
+        magnus-idle 3.4s ease-in-out infinite;
+}
+
+.magnus-coach img[data-magnus-image] {
+    display: block;
+
+    width: 100%;
+    height: 100%;
+
+    object-fit: contain;
+
+    user-select: none;
+    -webkit-user-drag: none;
+
+    transform-origin: center bottom;
+
+    opacity: 0;
+
+    transition:
+        opacity 180ms ease,
+        transform 220ms cubic-bezier(.2,.8,.2,1),
+        filter 220ms ease;
+}
+
+.magnus-coach.magnus-ready img[data-magnus-image] {
+    opacity: 1;
+}
+
+/* ---------------------------------------------------------
+   Selected-move reaction
+   --------------------------------------------------------- */
+
+.magnus-coach.magnus-reacting {
+    animation: none;
+}
+
+.magnus-coach.magnus-nod {
+    animation:
+        magnus-nod 680ms cubic-bezier(.2,.8,.2,1),
+        magnus-idle 3.4s ease-in-out 680ms infinite;
+}
+
+.magnus-coach.magnus-think {
+    animation:
+        magnus-think 720ms cubic-bezier(.2,.8,.2,1),
+        magnus-idle 3.4s ease-in-out 720ms infinite;
+}
+
+.magnus-coach.magnus-question {
+    animation:
+        magnus-question 720ms cubic-bezier(.2,.8,.2,1),
+        magnus-idle 3.4s ease-in-out 720ms infinite;
+}
+
+.magnus-coach.magnus-shock {
+    animation:
+        magnus-shock 720ms cubic-bezier(.2,.8,.2,1),
+        magnus-idle 3.4s ease-in-out 720ms infinite;
+}
+
+.magnus-coach.magnus-disappointed {
+    animation:
+        magnus-disappointed 720ms cubic-bezier(.2,.8,.2,1),
+        magnus-idle 3.4s ease-in-out 720ms infinite;
+}
+
+.magnus-coach.magnus-celebrate {
+    animation:
+        magnus-celebrate 760ms cubic-bezier(.2,.8,.2,1),
+        magnus-idle 3.4s ease-in-out 760ms infinite;
+}
+
+/* ---------------------------------------------------------
+   Talking
+   --------------------------------------------------------- */
+
+.magnus-coach.magnus-talking img[data-magnus-image] {
+    animation: magnus-talk 620ms ease-in-out infinite;
+}
+
+/* ---------------------------------------------------------
+   Idle
+   --------------------------------------------------------- */
+
+@keyframes magnus-idle {
+    0%, 100% {
+        transform:
+            translate3d(0, 0, 0)
+            scale(1);
+    }
+
+    50% {
+        transform:
+            translate3d(0, -2px, 0)
+            scale(1.008);
+    }
+}
+
+/* ---------------------------------------------------------
+   Reactions
+   --------------------------------------------------------- */
+
+@keyframes magnus-nod {
+    0% {
+        transform: translateY(0) rotate(0deg) scale(1);
+    }
+
+    25% {
+        transform: translateY(-4px) rotate(-1deg) scale(1.025);
+    }
+
+    55% {
+        transform: translateY(2px) rotate(.5deg) scale(.998);
+    }
+
+    100% {
+        transform: translateY(0) rotate(0deg) scale(1);
+    }
+}
+
+@keyframes magnus-think {
+    0% {
+        transform: translateY(0) rotate(0deg);
+    }
+
+    35% {
+        transform: translateY(-3px) rotate(1deg);
+    }
+
+    65% {
+        transform: translateY(0) rotate(-.8deg);
+    }
+
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
+}
+
+@keyframes magnus-question {
+    0% {
+        transform: rotate(0deg) translateY(0);
+    }
+
+    35% {
+        transform: rotate(2deg) translateY(-2px);
+    }
+
+    65% {
+        transform: rotate(-1deg) translateY(1px);
+    }
+
+    100% {
+        transform: rotate(0deg) translateY(0);
+    }
+}
+
+@keyframes magnus-shock {
+    0% {
+        transform: scale(1) translateY(0);
+    }
+
+    25% {
+        transform: scale(1.075) translateY(-6px);
+    }
+
+    45% {
+        transform: scale(.985) translateY(2px);
+    }
+
+    70% {
+        transform: scale(1.025) translateY(-1px);
+    }
+
+    100% {
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes magnus-disappointed {
+    0% {
+        transform: translateY(0) rotate(0deg);
+    }
+
+    35% {
+        transform: translateY(2px) rotate(-1deg) scale(.99);
+    }
+
+    65% {
+        transform: translateY(1px) rotate(1deg);
+    }
+
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
+}
+
+@keyframes magnus-celebrate {
+    0% {
+        transform: translateY(0) scale(1);
+    }
+
+    25% {
+        transform: translateY(-7px) scale(1.055);
+    }
+
+    50% {
+        transform: translateY(1px) scale(.995);
+    }
+
+    75% {
+        transform: translateY(-4px) scale(1.025);
+    }
+
+    100% {
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes magnus-talk {
+    0%, 100% {
+        transform:
+            translateY(0)
+            scaleY(1);
+    }
+
+    25% {
+        transform:
+            translateY(-1px)
+            scaleY(1.012);
+    }
+
+    50% {
+        transform:
+            translateY(0)
+            scaleY(.994);
+    }
+
+    75% {
+        transform:
+            translateY(-1px)
+            scaleY(1.008);
+    }
+}
+
+/* ---------------------------------------------------------
+   Reduced motion
+   --------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+    .magnus-coach,
+    .magnus-coach.magnus-nod,
+    .magnus-coach.magnus-think,
+    .magnus-coach.magnus-question,
+    .magnus-coach.magnus-shock,
+    .magnus-coach.magnus-disappointed,
+    .magnus-coach.magnus-celebrate,
+    .magnus-coach.magnus-talking img[data-magnus-image] {
+        animation: none !important;
+    }
+
+    .magnus-coach img[data-magnus-image] {
+        transition: none;
+    }
+}

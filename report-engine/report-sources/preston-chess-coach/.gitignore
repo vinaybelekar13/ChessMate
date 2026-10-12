@@ -1,0 +1,33 @@
+node_modules/
+.next/
+out/
+dist/
+build/
+.turbo/
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.local
+*.egg-info/
+
+.DS_Store
+.idea/
+.vscode/
+
+# Local-only data
+tools/games/
+*.pgn
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+
+# Build loop — local-only driver scripts + run logs (not tracked)
+.claude_loop/
+.ralph/
+scripts/claude_loop.sh
+scripts/claude_loop_prompt.md
+scripts/claude_loop_stream.py

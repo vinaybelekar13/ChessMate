@@ -1,0 +1,3603 @@
+import { Chess } from "../vendor/chess.js?v=35";
+import { Engine } from "./engine.js?v=35";
+import { renderBoard } from "./board.js?v=35";
+import { reviewGame, detectOpening, CLASSES, CLASS_ORDER, winPct, MATE_CP } from "./review.js?v=35";
+import { rollup } from "./motifs.js?v=35";
+import { reviewKey, getCached, putCached } from "./cache.js?v=35";
+import { drawCard, cardName } from "./card.js?v=35";
+import { glyphSvg } from "./glyphs.js?v=35";
+import { fetchGames, fetchGameByUrl, playerSide, outcomeFor, refToToken, tokenToUrl }
+  from "./onlinegames.js?v=35";
+import { lookupPosition, RATING_BANDS } from "./explorer.js?v=35";
+import { scanBoard, gridToFen } from "./boardscan.js?v=36";
+import { gameSummary } from "./summary.js?v=35";
+
+const DEFAULT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+// The game the app opens with (barab0s1k vs Niknerf, the one that started this project).
+const SAMPLE_PGN = `[Event "Live Chess"]
+[Site "Chess.com"]
+[Date "2026.07.10"]
+[White "barab0s1k"]
+[Black "Niknerf"]
+[Result "1-0"]
+[WhiteElo "900"]
+[BlackElo "308"]
+[ECO "C46"]
+[Termination "barab0s1k won on time"]
+
+1. e4 e5 2. Nc3 Nc6 3. Nf3 Nf6 4. d4 exd4 5. Nxd4 Bb4 6. Nxc6 bxc6 7. Bd3 d5
+8. exd5 O-O 9. O-O cxd5 10. Bg5 c6 11. Qf3 Bd6 12. Rae1 Rb8 13. b3 Bb4 14. Qg3 Be6
+15. Qh4 h6 16. Bxh6 gxh6 17. Qxh6 Bxc3 18. Rxe6 Ne4 19. Rxe4 dxe4 20. Bxe4 f5
+21. Bxf5 Rf7 22. Be6 Qf6 23. Bxf7+ Kxf7 24. Qh5+ Kg8 25. Qg4+ Kf8 26. Rd1 c5
+27. Rd5 Re8 28. g3 Re5 29. Rd3 Ke7 30. Qd7+ Kf8 31. Qg4 Ke7 32. Qa4 Re1+
+33. Kg2 Bd4 34. Qxa7+ Kf8 35. Qa8+ Kg7 36. Rf3 Qe6 37. Qf8+ Kg6 38. h4 c4
+39. bxc4 Qxc4 40. h5+ Kh7 41. Rf7+ Qxf7 42. Qxf7+ Bg7 43. a4 Rd1 44. Qg6+ Kh8
+45. Qe8+ Kh7 46. a5 Ra1 47. Qg6+ Kh8 48. a6 Be5 49. Qe8+ Kh7 50. Qxe5 Rxa6
+51. Qc7+ Kh6 52. Qf7 1-0`;
+
+// How deep the live panel searches before it stops. It is a ceiling, not a target:
+// the search converges here and the worker goes idle, instead of running forever and
+// holding a core at ~90% for as long as the tab is open. Deeper than the default
+// review depth (14), and reached in a couple of seconds. See docs/NOTES.md.
+const LIVE_DEPTH = 20;
+
+const state = {
+  magnusCoach: null,
+  magnusCoachCache: new Map(),
+  coachGame: null,
+  coachByPly: new Map(),
+  coachLoading: false,
+  coachGameId: null,
+  engine: null, booted: false,
+  headers: {}, moves: [], startFen: DEFAULT_FEN,
+  ply: 0, flip: false,
+  reviewed: false, reviewing: false, cancel: { cancelled: false },
+  // Depth 16, not 14. The engine pool made the review ~3.5x faster, and the honest way
+  // to spend that is on depth rather than on finishing sooner: depth is the one lever
+  // that genuinely improves the analysis. A depth-16 review now costs less wall-clock
+  // than a depth-14 one did before the pool.
+  live: true, reviewDepth: 16, liveLines: 3,
+  explore: null, selected: null,
+  sound: true, opening: null,
+  // The Chess.com / Lichess account whose games are listed, and which one is open.
+  acct: { site: "chesscom", user: "", games: [], activeId: null, loading: false },
+  // Where the open game came from, when it came from one of the sites. Lets a
+  // share link point at the game instead of carrying its whole PGN.
+  source: null,
+  hasClocks: false,
+  // Right-click annotations (like Chess.com): arrows and single-square marks the
+  // user draws. Cleared on any left interaction or navigation. arrowPreview is
+  // the transient one that follows the cursor mid-drag.
+  userArrows: [], userMarks: [], arrowPreview: null,
+  magnusArrow: null,
+  // The "Explain" walk-through: { ply, base, line:[uci], sans:[san], idx, eval, title }.
+  explain: null,
+  // What the board is FOR right now: reviewing a game ("analyze"), moving both
+  // sides freely with the moves recorded ("solo"), or a game against a
+  // strength-limited engine ("bot").
+  mode: "analyze",
+  botPick: "w",          // the side chosen in the setup card
+  bot: null,             // { color, lvl, thinking, over, note } while a bot game exists
+  editor: null,          // { grid, stm, flip, brush } while the position editor is open
+};
+state.explorerBand = "club";   // which rating band the opening explorer shows
+try {
+  state.sound = localStorage.getItem("ca_sound") !== "0";
+  state.acct.site = localStorage.getItem("ca_site") || "chesscom";
+  state.acct.user = localStorage.getItem("ca_user") || "";
+  state.explorerBand = localStorage.getItem("ca_explorer_band") || "club";
+} catch (e) { /* private mode */ }
+
+const $ = (id) => document.getElementById(id);
+const el = {};
+["board","evalFill","evalNum","engineStatus","pgnInput","fenInput","depthSel","linesSel",
+ "movelist","summary","counts","motifNote","hdrTitle","hdrMeta",
+ "pWName","pBName","pWElo","pBElo","reviewBtn","progress","progressBar","progressTxt","readGlyph",
+ "readMove","readSub","live","liveToggle","liveEval","liveDepth","liveLinesBox","exploreBar","phases","phaseRows","cardBtn","cardCopyBtn",
+ "exploreTxt","explainBar","explainTxt","explainPrev","explainNext","explainDone","engineName","capW","capB","assessBox",
+ "assessNote","assessBest","graphCard","evalGraph","openingName","soundToggle","shareBtn",
+ "siteSel","userInput","loadUser","acctMsg","gameList",
+ "reviewHeaderCard","reviewGameTitle","reviewGameMeta","reviewRetryBtn","reviewCloseBtn",
+ "reviewAccuracy","reviewGameRating","reviewBestCount","reviewErrors",
+ "shareBar","shareBtn2","shareKind","shareNote","timeCard","timeGraph","timeNote","accStrip",
+ "impBar","impBody","impBarTxt","impToggle",
+ "playSetup","botElo","botStart","pickWhite","pickBlack","playBar","playTxt","botResign","botRematch","soloReset",
+ "explorerCard","explorerTitle","explorerRating","explorerBody","explorerNote",
+ "editorCard","editorBoard","palette","edWhite","edBlack","edFlip","edClear","edStart","edAnalyze","edCancel","edErr","editNote",
+ "scanFile","scanBtn","coachCard","coachBody"]
+  .forEach((k) => (el[k] = $(k)));
+
+// ---------- helpers ----------
+function fmtEval(cp, mate) {
+  if (mate != null) return (mate > 0 ? "#" : "#-") + Math.abs(mate);
+  // checkmate already on the board: the game is over, so show the result
+  if (Math.abs(cp || 0) >= MATE_CP) return cp > 0 ? "1-0" : "0-1";
+  const v = (cp || 0) / 100;
+  return (v > 0 ? "+" : "") + v.toFixed(2);
+}
+function wpFromNode(cp, mate) {
+  if (mate != null) return mate > 0 ? 100 : 0;
+  return winPct(cp || 0);
+}
+function currentFen() {
+  if (state.explore) return state.explore.chess.fen();
+  return state.ply === 0 ? state.startFen : state.moves[state.ply - 1].fenAfter;
+}
+function pvToSan(fen, uciList, max = 12) {
+  const c = new Chess(fen);
+  const out = [];
+  for (const u of uciList.slice(0, max)) {
+    try {
+      const m = c.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u.slice(4, 5) || undefined });
+      if (!m) break;
+      out.push(m.san);
+    } catch (e) { break; }
+  }
+  return out;
+}
+function formatPvSan(fen, sans) {
+  const stmWhite = fen.split(" ")[1] === "w";
+  let n = parseInt(fen.split(" ")[5] || "1", 10);
+  let s = "", white = stmWhite;
+  sans.forEach((san, i) => {
+    if (white) s += (i ? " " : "") + n + ". " + san;
+    else { s += (i === 0 ? n + "... " : " ") + san; n++; }
+    white = !white;
+  });
+  return s;
+}
+
+// ---------- Home game-end overlay ----------
+
+// ---------- Home game-end overlay ----------
+function updateHomeGameEndOverlay() {
+  const overlay = el.homeGameOverlay;
+  const titleEl = el.homeGameOverlayTitle;
+  const subtitleEl = el.homeGameOverlaySubtitle;
+
+  if (!overlay || !titleEl || !subtitleEl) return;
+
+  let c = null;
+
+  try {
+    if (state.explore && state.explore.chess) {
+      c = state.explore.chess;
+    } else {
+      c = new Chess(state.startFen);
+
+      for (let i = 0; i < state.ply; i++) {
+        const mv = state.moves[i];
+        if (!mv) continue;
+
+        c.move({
+          from: mv.from,
+          to: mv.to,
+          promotion: mv.promotion || undefined,
+        });
+      }
+    }
+  } catch (e) {
+    overlay.classList.remove("is-visible");
+    overlay.setAttribute("aria-hidden", "true");
+    return;
+  }
+
+  let title = "";
+  let subtitle = "";
+
+  if (c.isCheckmate()) {
+    const winner = c.turn() === "w" ? "Black" : "White";
+    title = "CHECKMATE";
+    subtitle = winner + " wins";
+  } else if (c.isStalemate()) {
+    title = "STALEMATE";
+    subtitle = "No legal moves";
+  } else if (c.isThreefoldRepetition()) {
+    title = "DRAW";
+    subtitle = "Threefold repetition";
+  } else if (c.isDraw()) {
+    title = "DRAW";
+    subtitle = "Game drawn";
+  }
+
+  titleEl.textContent = title;
+  subtitleEl.textContent = subtitle;
+
+  const visible = Boolean(title);
+  overlay.classList.toggle("is-visible", visible);
+  overlay.setAttribute("aria-hidden", visible ? "false" : "true");
+}
+
+// ---------- sounds (synthesized with WebAudio, no audio files) ----------
+let audioCtx = null;
+function audio() {
+  if (!audioCtx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    audioCtx = new AC();
+  }
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+function blip({ freq = 240, dur = 0.08, gain = 0.13, noisy = false }) {
+  if (!state.sound) return;
+  const ctx = audio();
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(gain, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  g.connect(ctx.destination);
+  if (noisy) { // capture: short filtered noise burst
+    const len = Math.max(1, Math.floor(ctx.sampleRate * dur));
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = "bandpass"; f.frequency.value = freq * 3;
+    src.connect(f); f.connect(g); src.start(t); src.stop(t + dur);
+  } else {     // move: soft pitch-dropping thock
+    const o = ctx.createOscillator();
+    o.type = "sine";
+    o.frequency.setValueAtTime(freq, t);
+    o.frequency.exponentialRampToValueAtTime(freq * 0.6, t + dur);
+    o.connect(g); o.start(t); o.stop(t + dur);
+  }
+}
+function playMoveSound(mv) {
+  if (!mv) return;
+  const san = mv.san || "";
+  if (san.includes("#")) return blip({ freq: 500, dur: 0.18, gain: 0.16 });
+  if (san.includes("+")) return blip({ freq: 420, dur: 0.10, gain: 0.14 });
+  if (san.includes("x") || mv.captured) return blip({ freq: 200, dur: 0.10, gain: 0.18, noisy: true });
+  if (san.startsWith("O-O")) return blip({ freq: 175, dur: 0.12, gain: 0.15 });
+  blip({ freq: 240, dur: 0.075, gain: 0.12 });
+}
+
+// A short synthesized fanfare for the two rare classes, to go with the on-board
+// flourish. Brilliant is a bright rising arpeggio with a high sparkle; Great is
+// a warm two-note chime. Built with WebAudio like the move sounds — no files.
+function celebrateSound(cls) {
+  if (!state.sound || (cls !== "brilliant" && cls !== "great")) return;
+  const ctx = audio();
+  if (!ctx) return;
+  const t0 = ctx.currentTime;
+  const chime = (freq, at, dur, gain, type) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(gain, at + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(at); o.stop(at + dur + 0.02);
+  };
+  if (cls === "brilliant") {
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => chime(f, t0 + i * 0.075, 0.32, 0.16, "triangle"));
+    chime(1567.98, t0 + 0.26, 0.5, 0.09, "sine");   // shimmer on top
+  } else {
+    chime(523.25, t0, 0.34, 0.15, "sine");
+    chime(783.99, t0 + 0.1, 0.42, 0.15, "sine");     // up a fifth
+  }
+}
+
+// ---------- share link ----------
+let chipTimer = null;
+function flashChip(msg) {
+  el.engineStatus.textContent = msg;
+  clearTimeout(chipTimer);
+  chipTimer = setTimeout(() => {
+    el.engineStatus.textContent = state.booted ? "ready" : "starting...";
+  }, 1800);
+}
+// gzip <-> URL-safe base64, so a pasted-PGN link isn't thousands of characters.
+const b64url = {
+  from: (bytes) => {
+    let bin = "";
+    for (const b of bytes) bin += String.fromCharCode(b);
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  },
+  to: (s) => {
+    const bin = atob(s.replace(/-/g, "+").replace(/_/g, "/"));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  },
+};
+async function gzip(text) {
+  if (!window.CompressionStream) return null;
+  const s = new Blob([text]).stream().pipeThrough(new CompressionStream("gzip"));
+  return b64url.from(new Uint8Array(await new Response(s).arrayBuffer()));
+}
+async function gunzip(token) {
+  const s = new Blob([b64url.to(token)]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return await new Response(s).text();
+}
+
+// Shortest link that can reopen what's on screen:
+//   #g=  a pointer to the game on Chess.com / Lichess  (~70 chars)
+//   #z=  the PGN, gzipped                              (~1/3 of raw)
+//   #pgn= / #fen=  the older formats, still read below
+async function buildShareLink() {
+  const base = location.origin + location.pathname;
+  const token = state.source ? refToToken(state.source) : null;
+  if (token) return base + "#g=" + token;
+
+  const pgn = el.pgnInput.value.trim();
+  if (state.moves.length && pgn) {
+    const z = await gzip(pgn);
+    if (z) return base + "#z=" + z;
+    return base + "#pgn=" + btoa(unescape(encodeURIComponent(pgn)));
+  }
+  if (state.startFen && state.startFen !== DEFAULT_FEN) {
+    return base + "#fen=" + encodeURIComponent(state.startFen);
+  }
+  return base;
+}
+async function copyShareLink() {
+  const url = await buildShareLink();
+  try {
+    await navigator.clipboard.writeText(url);
+    flashChip("link copied");
+    flashShare("Link copied \u2713");
+  } catch (e) {
+    window.prompt("Copy this link:", url);
+  }
+}
+
+// Load a game/position that was shared via the URL hash.
+initMagnusCoach();
+
+async function loadFromHash() {
+  const h = location.hash || "";
+  try {
+    if (h.startsWith("#g=")) {
+      const url = tokenToUrl(decodeURIComponent(h.slice(3)));
+      if (!url) return false;
+      await openGameFromLink(url);
+      return true;
+    }
+
+    if (h.startsWith("#z=")) {
+      const pgn = await gunzip(h.slice(3));
+      el.pgnInput.value = pgn;
+      loadGame(parseGame(pgn));
+      return true;
+    }
+
+    if (h.startsWith("#pgn=")) {
+      const pgn = decodeURIComponent(escape(atob(h.slice(5))));
+      el.pgnInput.value = pgn;
+      loadGame(parseGame(pgn));
+      return true;
+    }
+
+    if (h.startsWith("#game=")) {
+      const params = new URLSearchParams(h.slice(1));
+
+      const gameId = Number(params.get("game"));
+      const targetPly = Number(params.get("ply") || 0);
+
+      if (!Number.isInteger(gameId) || gameId <= 0) {
+        return false;
+      }
+
+      const response = await fetch(
+        `http://127.0.0.1:8787/api/report/games/${encodeURIComponent(gameId)}`
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `Could not load report game: HTTP ${response.status}`
+        );
+      }
+
+      const game = await response.json();
+
+      if (!game.pgn) {
+        throw new Error("Report game does not contain PGN");
+      }
+
+      el.pgnInput.value = game.pgn;
+
+      // Load the board first; loadGame() clears game-specific coach state.
+      loadGame(parseGame(game.pgn));
+
+      // Populate canonical coaching only after the board has been initialized.
+      await loadCoachGame(gameId);
+
+      if (Number.isFinite(targetPly)) {
+        goto(Math.max(0, targetPly));
+      }
+
+      return true;
+    }
+
+    if (h.startsWith("#fen=")) {
+      const fen = decodeURIComponent(h.slice(5));
+      new Chess(fen);
+
+      loadGame({
+        headers: {
+          White: "Position",
+          Black: "analysis"
+        },
+        moves: [],
+        startFen: fen
+      });
+
+      return true;
+    }
+  } catch (e) {
+    console.error("ChessMate hash navigation error:", e);
+  }
+
+  return false;
+}
+// ---------- import card folding ----------
+// With a game open the import form is just dead weight at the top of the page,
+// pushing the board below the fold. Fold it to one line until it's wanted.
+function setImportOpen(open) {
+  el.impBody.classList.toggle("hidden", !open);
+  el.impBar.classList.toggle("hidden", open);
+}
+function renderImportBar() {
+  const h = state.headers;
+  if (!state.moves.length) { setImportOpen(true); return; }
+  const bits = [];
+  if (h.Result) bits.push(h.Result);
+  if (h.Date) bits.push(h.Date.replace(/\./g, "-"));
+  el.impBarTxt.innerHTML = esc((h.White || "White") + " vs " + (h.Black || "Black")) +
+    (bits.length ? ' <span class="dim">· ' + esc(bits.join(" · ")) + "</span>" : "");
+  setImportOpen(false);
+}
+
+// ---------- share bar ----------
+let shareTimer = null;
+function flashShare(msg) {
+  el.shareNote.textContent = msg;
+  el.shareNote.classList.remove("hidden");
+  clearTimeout(shareTimer);
+  shareTimer = setTimeout(() => el.shareNote.classList.add("hidden"), 2200);
+}
+function renderShareBar() {
+  const has = state.moves.length > 0 || state.startFen !== DEFAULT_FEN;
+  el.shareBar.classList.toggle("hidden", !has);
+  // A game we can point at needs no PGN in the link at all.
+  el.shareKind.textContent = state.source
+    ? "a short link straight to this game"
+    : "a link that carries the whole game";
+}
+
+// ---------- import from a Chess.com / Lichess account ----------
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function fmtDate(d) {
+  if (!(d instanceof Date) || isNaN(d)) return "";
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString(undefined,
+    sameYear ? { month: "short", day: "numeric" } : { year: "numeric", month: "short", day: "numeric" });
+}
+function setAcctMsg(text, isErr) {
+  el.acctMsg.textContent = text || "";
+  el.acctMsg.classList.toggle("err", !!isErr);
+  el.acctMsg.classList.toggle("hidden", !text);
+}
+
+// The one import field takes either a username or a link to a single game.
+// Anything that looks like a link is handled as one — including links we don't
+// recognise, which then say so instead of being looked up as a username.
+const looksLikeUrl = (s) => /^https?:\/\//i.test(s);
+
+function loadFromInput() {
+  const txt = el.userInput.value.trim();
+  if (!txt || state.acct.loading) return;
+  if (looksLikeUrl(txt)) openGameFromLink(txt);
+  else loadAccountGames();
+}
+
+// Open the one game a Chess.com / Lichess link points at.
+async function openGameFromLink(link) {
+  state.acct.loading = true;
+  el.loadUser.disabled = true;
+  setAcctMsg("Fetching that game...", false);
+  try {
+    // A Chess.com link without ?username= (an /analysis/ one, say) can still be
+    // found if we know whose game to look through — use the last account searched.
+    const g = await fetchGameByUrl(link, {
+      onProgress: (m) => setAcctMsg(m, false),
+      fallbackUser: state.acct.user,
+    });
+    let parsed;
+    try { parsed = parseGame(g.pgn); }
+    catch (e) { throw new Error("Could not read that game's PGN."); }
+
+    el.pgnInput.value = g.pgn;
+    // Face the board towards whoever the link is about: the ?username= on a
+    // Chess.com link, the /black suffix on a Lichess one, or the last account
+    // searched if it happens to be one of the two players.
+    const players = { white: parsed.headers.White || "", black: parsed.headers.Black || "" };
+    const side = playerSide(players, g.user || state.acct.user);
+    state.flip = side ? side === "b" : g.color === "black";
+
+    loadGame(parsed);   // also clears the game-list highlight and the source
+    state.source = g.ref || null;
+    renderShareBar();
+    setAcctMsg((players.white || "White") + " vs " + (players.black || "Black") + " — loaded.", false);
+    document.querySelector(".boardcard").scrollIntoView({ block: "nearest", behavior: "smooth" });
+  } catch (e) {
+    setAcctMsg(e.message || "Could not open that game.", true);
+  } finally {
+    state.acct.loading = false;
+    el.loadUser.disabled = false;
+  }
+}
+
+async function loadAccountGames() {
+  const site = el.siteSel.value;
+  const user = el.userInput.value.trim();
+  if (!user || state.acct.loading) return;
+  state.acct.loading = true;
+  el.loadUser.disabled = true;
+  el.gameList.classList.add("hidden");
+  setAcctMsg("Fetching games...", false);
+  try {
+    const games = await fetchGames(site, user, { max: 30 });
+    state.acct = { site, user, games, activeId: null, loading: false };
+    try {
+      localStorage.setItem("ca_site", site);
+      localStorage.setItem("ca_user", user);
+    } catch (e) { /* private mode */ }
+    setAcctMsg(games.length + " recent games — click one to open it.", false);
+    renderGameList();
+  } catch (e) {
+    state.acct.games = [];
+    setAcctMsg(e.message || "Could not load those games.", true);
+  } finally {
+    state.acct.loading = false;
+    el.loadUser.disabled = false;
+  }
+}
+
+const OUTCOME_GLYPH = { win: "W", loss: "L", draw: "\u00BD" };
+
+function renderGameList() {
+  const { games, user } = state.acct;
+  el.gameList.innerHTML = "";
+  el.gameList.classList.toggle("hidden", !games.length);
+
+  for (const g of games) {
+    const side = playerSide(g, user);
+    const out = outcomeFor(g, user);
+
+    const name = (who, elo, isMe) =>
+      '<span class="' + (isMe ? "me" : "") + '">' + esc(who) + "</span>" +
+      (elo ? ' <span class="el">' + elo + "</span>" : "");
+
+    const row = document.createElement("div");
+    row.className = "grow" + (g.id === state.acct.activeId ? " on" : "");
+
+    row.innerHTML =
+      '<span class="gres ' + out + '">' + OUTCOME_GLYPH[out] + "</span>" +
+      '<div class="gmain">' +
+        '<div class="gp">' +
+          name(g.white, g.whiteElo, side === "w") +
+          ' <span class="vs">vs</span> ' +
+          name(g.black, g.blackElo, side === "b") +
+        "</div>" +
+        (g.opening ? '<div class="gop">' + esc(g.opening) + "</div>" : "") +
+      "</div>" +
+      '<div class="gmeta">' +
+        '<span class="tc">' + esc(g.timeClass || "") + "</span><br>" +
+        esc(fmtDate(g.date)) +
+        '<button class="game-review-btn" type="button">Game Review</button>' +
+      "</div>";
+
+    // Clicking the game row normally opens the game.
+    row.addEventListener("click", (e) => {
+      if (e.target.closest(".game-review-btn")) return;
+      openAccountGame(g);
+    });
+
+    // Dedicated Game Review action.
+    const reviewBtn = row.querySelector(".game-review-btn");
+
+    reviewBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      openAccountGame(g);
+
+      if (!state.moves.length) return;
+
+      if (!state.booted) {
+        setAcctMsg(
+          "Chess engine is still loading. Please try Game Review again in a moment.",
+          true
+        );
+        return;
+      }
+
+      await runReview();
+    });
+
+    el.gameList.appendChild(row);
+  }
+}
+function openAccountGame(g) {
+  let parsed;
+  try { parsed = parseGame(g.pgn); }
+  catch (e) { setAcctMsg("Could not read that game's PGN.", true); return; }
+  el.pgnInput.value = g.pgn;
+  // Show the board from the perspective of the player whose games these are.
+  state.flip = playerSide(g, state.acct.user) === "b";
+  loadGame(parsed);                 // clears activeId and source
+  state.acct.activeId = g.id;
+  state.source = g.ref || null;
+  renderGameList();
+  renderShareBar();
+  document.querySelector(".boardcard").scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+// ---------- captured material ----------
+const PIECE_GLYPH = { p: "♟", n: "♞", b: "♝", r: "♜", q: "♛" };
+const INIT = { p: 8, n: 2, b: 2, r: 2, q: 1 };
+const PVAL = { p: 1, n: 3, b: 3, r: 5, q: 9 };
+
+function countPieces(fen) {
+  const w = { p: 0, n: 0, b: 0, r: 0, q: 0 }, b = { p: 0, n: 0, b: 0, r: 0, q: 0 };
+  for (const ch of fen.split(" ")[0]) {
+    const lc = ch.toLowerCase();
+    if (w[lc] !== undefined) (ch === ch.toUpperCase() ? w : b)[lc]++;
+  }
+  return { w, b };
+}
+function capHtml(list, colorClass) {
+  return list.map((t) => '<span class="cap ' + colorClass + '">' + PIECE_GLYPH[t] + "</span>").join("");
+}
+function renderMaterial(fen) {
+  const { w, b } = countPieces(fen);
+  const capByWhite = [], capByBlack = [];
+  let diff = 0;
+  for (const t of ["p", "n", "b", "r", "q"]) {
+    for (let i = 0; i < INIT[t] - b[t]; i++) capByWhite.push(t); // black pieces White took
+    for (let i = 0; i < INIT[t] - w[t]; i++) capByBlack.push(t); // white pieces Black took
+    diff += PVAL[t] * (w[t] - b[t]);
+  }
+  el.capW.innerHTML = capHtml(capByWhite, "b") + (diff > 0 ? '<span class="adv">+' + diff + "</span>" : "");
+  el.capB.innerHTML = capHtml(capByBlack, "w") + (diff < 0 ? '<span class="adv">+' + -diff + "</span>" : "");
+}
+
+const PIECE_LONG = { p: "a pawn", n: "a knight", b: "a bishop", r: "a rook", q: "your queen" };
+
+// Plain-English, coach-style note for a classified move.
+function coachNote(mv) {
+  const b = mv.bestSan;
+  const cap = mv.san.includes("x");
+  const check = /[+#]/.test(mv.san);
+  // If we can name WHY the move went wrong, lead with that — the \u2605 best move is
+  // shown separately below. Falls back to the generic line when no motif fired.
+  if (mv.motif && mv.motif.text) return mv.motif.text;
+  switch (mv.cls) {
+    // The rare good moves get the same specificity the bad ones do: name what was
+    // offered, and how forced the find was. The "why" walk-through sits below.
+    case "brilliant": return "A brilliant sacrifice — you offer " + (PIECE_LONG[mv.sacPiece] || "material") +
+      ", and taking it doesn't save your opponent: the follow-up keeps you on top.";
+    case "great": return "A great find — practically the only move that works here" +
+      (mv.onlyGap ? ": anything else gives up " + mv.onlyGap + "% of your winning chances." : ".");
+    case "best": return check ? "The sharpest move — you keep the pressure on."
+      : cap ? "The best move — you grab the key material." : "The strongest move in the position.";
+    case "good": return "A sound, solid move — nothing lost.";
+    case "book": return "A well-known opening move.";
+    case "inaccuracy": return "Slightly inaccurate" + (b ? " — " + b + " was a touch stronger." : ".");
+    case "miss": return "A missed opportunity — you could have won material or preserved a mating chance" + (b ? ". " + b + " was better." : ".");
+    case "mistake": return "A mistake — this hands your opponent chances" + (b ? ". " + b + " was better." : ".");
+    case "blunder": return "A blunder — this drops material or the game" + (b ? ". " + b + " was much stronger." : ".");
+    default: return "";
+  }
+}
+
+function renderAssessment() {
+  const show = state.reviewed && state.ply > 0 && !state.explore;
+  if (!show) { el.assessBox.classList.add("hidden"); return; }
+  const mv = state.moves[state.ply - 1];
+  el.assessNote.textContent = coachNote(mv);
+  // Show the engine's move whenever it is GENUINELY better than what was played —
+  // so good/excellent moves still say "\u2605 Qf4 was best", but a move that already
+  // matches (or beats) the engine's own line shows nothing. Comparing mover-POV
+  // evals is what avoids the old paradox of labelling a WORSE move "best": the
+  // played-move eval and the pre-move best-line eval come from different searches
+  // and can cross near equality.
+  const played = moverEval(mv.cpWhite, mv.mateWhite, mv.color);
+  const best = moverEval(mv.bestCpWhite, mv.bestMateWhite, mv.color);
+  if (mv.bestSan && mv.bestSan !== mv.san && best > played + 5) {
+    el.assessBest.classList.remove("hidden");
+    el.assessBest.classList.add("clickable");
+    el.assessBest.innerHTML =
+      '<span class="cg" style="color:var(--best)">\u2605</span> <b>' + mv.bestSan + "</b> was best" +
+      (mv.bestLine && mv.bestLine.length ? '<span class="preview-hint">&#x1F4A1; Explain</span>' : "") +
+      '<span class="evchip">' + fmtEval(mv.bestCpWhite, mv.bestMateWhite) + "</span>";
+    el.assessBest.onclick = () => (mv.bestLine && mv.bestLine.length ? enterExplain(mv) : previewBest(mv));
+  } else if ((mv.cls === "brilliant" || mv.cls === "great") && mv.afterLine && mv.afterLine.length) {
+    // A brilliancy earns the same walk-through a blunder gets — but forwards: step
+    // through the engine's line FROM AFTER the move and watch the sacrifice hold.
+    el.assessBest.classList.remove("hidden");
+    el.assessBest.classList.add("clickable");
+    el.assessBest.innerHTML =
+      '<span class="cg" style="color:var(' + CLASSES[mv.cls].v + ')">' + CLASSES[mv.cls].g + "</span> " +
+      "<b>See why it works</b>" +
+      '<span class="preview-hint">&#x1F4A1; Explain</span>' +
+      '<span class="evchip">' + fmtEval(mv.cpWhite, mv.mateWhite) + "</span>";
+    el.assessBest.onclick = () => enterFollowUp(mv);
+  } else { el.assessBest.classList.add("hidden"); el.assessBest.onclick = null; }
+  el.assessBox.classList.remove("hidden");
+}
+
+// Play Magnus's recommended move on the board (branch from the position
+// before the played move) so the user can see where it goes and continue it.
+function previewBest(mv) {
+  if (!mv || !mv.bestFrom) return;
+  playToken++;
+  const chess = new Chess(mv.fenBefore);
+  try { chess.move({ from: mv.bestFrom, to: mv.bestTo, promotion: mv.bestPromo || undefined }); }
+  catch (e) { return; }
+  state.explore = { base: mv.fenBefore, chess, arrow: { from: mv.bestFrom, to: mv.bestTo } };
+  state.selected = null;
+
+  /*
+   * Magnus + Coach Core react to the canonical Coach analysis
+   * indexed by the currently selected ply.
+   *
+   * The same coach object drives both the Magnus state and
+   * the readable coaching explanation.
+   */
+  updateMagnusFromCoach();
+  renderCoachCore();
+  el.exploreBar.classList.remove("hidden");
+  renderExploreLine();
+  drawBoard();
+  animateMove(mv.bestFrom, mv.bestTo);
+  playMoveSound({ san: mv.bestSan || "" });
+  renderReadout(); renderAssessment(); restartLive();
+}
+
+// ---------- "Explain": walk an engine line one move at a time ----------
+// For a move that wasn't best, step through the line the engine recommends INSTEAD
+// (from before the move). For a brilliant/great move, step through the line that
+// follows it, to see why it holds. Each ‹ › plays / takes back one move on the
+// board. "Got it" returns to the review.
+function enterWalkthrough(baseFen, uciLine, evalStr, title) {
+  if (!uciLine || !uciLine.length) return;
+  playToken++;
+  const chess = new Chess(baseFen);
+  const line = [], sans = [];
+  for (const uci of uciLine) {
+    let m;
+    try { m = chess.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.slice(4, 5) || undefined }); }
+    catch (e) { break; }
+    if (!m) break;
+    line.push(uci); sans.push(m.san);
+    if (line.length >= 12) break;                 // enough to make the point, still digestible
+  }
+  if (!line.length) return;
+  state.explain = { ply: state.ply, base: baseFen, line, sans, idx: 1, eval: evalStr, title };
+  state.selected = null;
+
+  /*
+   * Magnus + Coach Core react to the canonical Coach analysis
+   * indexed by the currently selected ply.
+   *
+   * The same coach object drives both the Magnus state and
+   * the readable coaching explanation.
+   */
+  updateMagnusFromCoach();
+  renderCoachCore();
+  el.exploreBar.classList.add("hidden");
+  renderExplain(true);
+}
+function enterExplain(mv) {
+  if (!mv) return;
+  enterWalkthrough(mv.fenBefore, mv.bestLine, fmtEval(mv.bestCpWhite, mv.bestMateWhite), "The best line");
+}
+function enterFollowUp(mv) {
+  if (!mv) return;
+  enterWalkthrough(mv.fenAfter, mv.afterLine, fmtEval(mv.cpWhite, mv.mateWhite), "Why " + mv.san + " works");
+}
+
+function renderExplain(animate) {
+  const ex = state.explain;
+  if (!ex) return;
+  const chess = new Chess(ex.base);
+  let from = null, to = null;
+  for (let i = 0; i < ex.idx; i++) {
+    const u = ex.line[i];
+    chess.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u.slice(4, 5) || undefined });
+    from = u.slice(0, 2); to = u.slice(2, 4);
+  }
+  state.explore = { base: ex.base, chess, arrow: null };   // reuse the exploration board
+  el.explainBar.classList.remove("hidden");
+  const parts = ex.sans.map((s, i) => (i === ex.idx - 1 ? "<b>" + esc(s) + "</b>" : esc(s)));
+  el.explainTxt.innerHTML = '<span class="bulb">&#x1F4A1;</span> ' + parts.join(" ") +
+    ' <span class="evchip">' + ex.eval + "</span>";
+  el.explainPrev.disabled = ex.idx <= 1;
+  el.explainNext.disabled = ex.idx >= ex.line.length;
+  drawBoard();
+  if (animate && from) animateMove(from, to);
+  renderReadout(); renderAssessment(); restartLive();
+}
+
+function explainStep(delta) {
+  const ex = state.explain;
+  if (!ex) return;
+  const ni = Math.max(1, Math.min(ex.line.length, ex.idx + delta));
+  if (ni === ex.idx) return;
+  playToken++;
+  const forward = ni > ex.idx;
+  ex.idx = ni;
+  renderExplain(forward);
+  playMoveSound({ san: ex.sans[ex.idx - 1] });
+}
+
+function exitExplain() {
+  const ply = state.explain ? state.explain.ply : state.ply;
+  state.explain = null;
+  state.explore = null;
+  el.explainBar.classList.add("hidden");
+  el.exploreBar.classList.add("hidden");
+  goto(ply);
+}
+
+// Play the NEXT single move of an engine line (one click = one move). The engine
+// then re-analyzes the new position, so clicking a line again continues it.
+function playLine(fen, pv) {
+  if (!pv || !pv.length) return;
+  playToken++;
+  // Continue the current line if this click starts from the current explore
+  // position; otherwise begin a fresh line from `fen`.
+  let base, chess;
+  if (state.explore && state.explore.chess.fen() === fen) {
+    base = state.explore.base;
+    chess = state.explore.chess;
+  } else {
+    base = fen;
+    chess = new Chess(fen);
+  }
+  const u = pv[0];
+  let mv;
+  try { mv = chess.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u.slice(4, 5) || undefined }); }
+  catch (e) { return; }
+  if (!mv) return;
+  state.explore = { base, chess, arrow: { from: mv.from, to: mv.to } };
+  state.selected = null;
+
+  /*
+   * Magnus + Coach Core react to the canonical Coach analysis
+   * indexed by the currently selected ply.
+   *
+   * The same coach object drives both the Magnus state and
+   * the readable coaching explanation.
+   */
+  updateMagnusFromCoach();
+  renderCoachCore();
+  el.exploreBar.classList.remove("hidden");
+  renderExploreLine();
+  drawBoard();
+  animateMove(mv.from, mv.to);
+  playMoveSound(mv);
+  renderReadout(); renderAssessment(); restartLive();
+}
+
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#888";
+}
+
+// Win-probability line across the whole game with dots on notable moves.
+function drawEvalGraph() {
+  if (!state.reviewed || !state.moves.length) { el.graphCard.classList.add("hidden"); return; }
+  el.graphCard.classList.remove("hidden");
+  const cv = el.evalGraph;
+  const W = Math.max(300, cv.getBoundingClientRect().width), H = 100;
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + "px";
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  const N = state.moves.length;
+  const pts = [winPct(20)];
+  for (const m of state.moves) pts.push(m.mateWhite != null ? (m.mateWhite > 0 ? 100 : 0) : winPct(m.cpWhite));
+  const X = (i) => (i / N) * W;
+  const Y = (v) => H - (v / 100) * H;
+
+  ctx.fillStyle = cssVar("--panel2"); ctx.fillRect(0, 0, W, H);          // black-advantage ground
+  ctx.beginPath(); ctx.moveTo(0, H);
+  pts.forEach((v, i) => ctx.lineTo(X(i), Y(v)));
+  ctx.lineTo(W, H); ctx.closePath();
+  ctx.fillStyle = "#e9e7df"; ctx.fill();                                  // white-advantage area
+
+  ctx.strokeStyle = "rgba(128,128,128,.45)"; ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(0, Y(50)); ctx.lineTo(W, Y(50)); ctx.stroke(); ctx.setLineDash([]);
+
+  ctx.strokeStyle = "rgba(60,66,74,.55)"; ctx.lineWidth = 1;
+  ctx.beginPath(); pts.forEach((v, i) => (i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v)))); ctx.stroke();
+
+  const notable = { brilliant: 1, great: 1, inaccuracy: 1, mistake: 1, blunder: 1 };
+  state.moves.forEach((m, i) => {
+    if (!notable[m.cls]) return;
+    ctx.beginPath(); ctx.arc(X(i + 1), Y(pts[i + 1]), 3.4, 0, 7);
+    ctx.fillStyle = cssVar(CLASSES[m.cls].v); ctx.fill();
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.2; ctx.stroke();
+  });
+
+  const cx = X(state.ply);
+  ctx.strokeStyle = cssVar("--accent"); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
+}
+
+// Seconds spent on each move, one bar per move, coloured by how good the move
+// was — so a blunder played in two seconds is impossible to miss.
+function drawTimeGraph() {
+  const show = state.hasClocks && state.moves.length;
+  el.timeCard.classList.toggle("hidden", !show);
+  if (!show) return;
+
+  const cv = el.timeGraph;
+  const W = Math.max(300, cv.getBoundingClientRect().width), H = 64;
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + "px";
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  const N = state.moves.length;
+  const spents = state.moves.map((m) => (m.spent == null ? 0 : m.spent));
+  // One long think shouldn't flatten everything else, so scale to the 95th
+  // percentile and let the rare outlier clip at full height.
+  const sorted = [...spents].sort((a, b) => a - b);
+  const cap = Math.max(1, sorted[Math.floor(sorted.length * 0.95)] || 1);
+  const pad = 2;
+  const bw = Math.max(1, (W - pad * 2) / N - 1);
+
+  ctx.fillStyle = cssVar("--panel2");
+  ctx.fillRect(0, 0, W, H);
+
+  state.moves.forEach((m, i) => {
+    const x = pad + (i / N) * (W - pad * 2);
+    const h = Math.min(1, spents[i] / cap) * (H - 8);
+    ctx.fillStyle = state.reviewed ? cssVar(CLASSES[m.cls].v) : cssVar("--muted");
+    ctx.globalAlpha = m.color === "w" ? 1 : 0.55;   // Black's moves sit dimmer
+    ctx.fillRect(x, H - h, bw, h);
+  });
+  ctx.globalAlpha = 1;
+
+  const cx = pad + (Math.max(0, state.ply - 1) / N) * (W - pad * 2) + bw / 2;
+  ctx.strokeStyle = cssVar("--accent"); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
+}
+
+// The line that turns clock data into an actual diagnosis: did the moves that
+// went wrong get less thought than the rest? Errors = inaccuracy or worse; book
+// moves are excluded from the comparison since theory is played instantly.
+const WENT_WRONG = { inaccuracy: 1, mistake: 1, blunder: 1 };
+function timeVerdict(color) {
+  const mine = state.moves.filter((m) => m.color === color && m.spent != null && m.cls !== "book");
+  const bad = mine.filter((m) => WENT_WRONG[m.cls]).map((m) => m.spent);
+  const good = mine.filter((m) => !WENT_WRONG[m.cls]).map((m) => m.spent);
+  if (bad.length < 3 || good.length < 5) return null;   // too small a sample to claim anything
+  return { bad: median(bad), good: median(good), n: bad.length };
+}
+function renderTimeNote() {
+  if (!state.reviewed || !state.hasClocks) { el.timeNote.classList.add("hidden"); return; }
+  const rows = [];
+  for (const c of ["w", "b"]) {
+    const v = timeVerdict(c);
+    if (!v) continue;
+    const who = (c === "w" ? state.headers.White : state.headers.Black) || (c === "w" ? "White" : "Black");
+    const ratio = v.good > 0 ? v.bad / v.good : 1;
+    const verdict = ratio <= 0.6 ? " — the errors were the rushed moves."
+      : ratio >= 1.6 ? " — so the errors came from the long thinks, not from rushing."
+      : " — thinking time wasn’t what separated them.";
+    rows.push("<b>" + esc(who) + "</b> spent a median <b>" + fmtSecs(v.bad) + "</b> on the " +
+      v.n + " moves that went wrong, versus <b>" + fmtSecs(v.good) + "</b> on the rest" + verdict);
+  }
+  el.timeNote.innerHTML = rows.join("<br>");
+  el.timeNote.classList.toggle("hidden", !rows.length);
+}
+
+// A one-line-per-side pattern across the game's mistakes, e.g. "3 of 4 costly
+// moves left a piece undefended." Silent unless one motif dominates a side.
+function renderMotifNote() {
+  if (!state.reviewed) { el.motifNote.classList.add("hidden"); return; }
+  const rows = [];
+  for (const c of ["w", "b"]) {
+    const line = rollup(state.moves, c);
+    if (!line) continue;
+    const who = (c === "w" ? state.headers.White : state.headers.Black) || (c === "w" ? "White" : "Black");
+    rows.push("<b>" + esc(who) + "</b> — " + line);
+  }
+  el.motifNote.innerHTML = rows.join("<br>");
+  el.motifNote.classList.toggle("hidden", !rows.length);
+}
+
+// ---------- clocks ----------
+// Chess.com and Lichess both stamp every move with the mover's remaining time,
+// as {[%clk 0:09:58.5]}. chess.js drops comments, so read them from the text.
+function parseClocks(pgn) {
+  const out = [];
+  const re = /\[%clk\s+(\d+):(\d{1,2}):(\d{1,2}(?:\.\d+)?)\]/g;
+  let m;
+  while ((m = re.exec(pgn))) out.push(+m[1] * 3600 + +m[2] * 60 + parseFloat(m[3]));
+  return out;
+}
+// "600" / "600+5" / "180+2"; correspondence games ("1/259200") have no clock.
+function parseTimeControl(tc) {
+  if (!tc || tc.includes("/")) return { base: null, inc: 0 };
+  const [b, i] = String(tc).split("+");
+  const base = parseInt(b, 10);
+  return { base: isNaN(base) ? null : base, inc: parseInt(i, 10) || 0 };
+}
+// Seconds a player burned on each move: what their clock lost since their last
+// turn, plus whatever increment they were given back for making the move.
+function attachClocks(moves, pgn, headers) {
+  const clocks = parseClocks(pgn);
+  if (clocks.length !== moves.length || !moves.length) return;
+  const { base, inc } = parseTimeControl(headers.TimeControl);
+  moves.forEach((mv, i) => {
+    mv.clock = clocks[i];
+    const before = i >= 2 ? clocks[i - 2] : base;
+    mv.spent = before == null ? null
+      : Math.max(0, Math.round((before - clocks[i] + inc) * 10) / 10);
+  });
+}
+function fmtSecs(s) {
+  if (s == null) return "";
+  if (s < 10) return s.toFixed(1) + "s";
+  if (s < 60) return Math.round(s) + "s";
+  const m = Math.floor(s / 60);
+  return m + "m " + String(Math.round(s % 60)).padStart(2, "0") + "s";
+}
+const median = (a) => {
+  if (!a.length) return null;
+  const s = [...a].sort((x, y) => x - y);
+  const h = s.length >> 1;
+  return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2;
+};
+
+// ---------- parsing ----------
+function parseGame(pgn) {
+  const headers = {};
+  for (const m of pgn.matchAll(/\[(\w+)\s+"([^"]*)"\]/g)) headers[m[1]] = m[2];
+  const c = new Chess();
+  try { c.loadPgn(pgn); }
+  catch (e) { c.loadPgn(pgn.replace(/\{[^}]*\}/g, "").replace(/\$\d+/g, "")); }
+  const startFen = headers.FEN ? headers.FEN : DEFAULT_FEN;
+  const rc = new Chess(startFen);
+  const verbose = c.history({ verbose: true });
+  const moves = verbose.map((h, idx) => {
+    const fenBefore = rc.fen();
+    const m = rc.move(h.san);
+    return {
+      san: m.san, from: m.from, to: m.to,
+      uci: m.from + m.to + (m.promotion || ""),
+      color: m.color, fenBefore, fenAfter: rc.fen(),
+      moveNo: rc.moveNumber() - (m.color === "w" ? 0 : 1),
+      clock: null, spent: null,
+    };
+  });
+  attachClocks(moves, pgn, headers);
+  return { headers, startFen, moves };
+}
+
+function loadGame(parsed) {
+  if (state.reviewing && state.cancel) state.cancel.cancelled = true;
+  // Clear game-specific coaching so another PGN cannot inherit stale analysis.
+  state.coachGame = null;
+  state.coachByPly = new Map();
+  state.coachGameId = null;
+  state.coachLoading = false;
+  state.headers = parsed.headers;
+  state.moves = parsed.moves;
+  state.startFen = parsed.startFen;
+  state.ply = 0;
+  state.reviewed = false;
+  state.review = null;
+  state.explore = null;
+  if (el.reviewHeaderCard) el.reviewHeaderCard.classList.add("hidden");
+  state.selected = null;
+
+  /*
+   * Magnus + Coach Core react to the canonical Coach analysis
+   * indexed by the currently selected ply.
+   *
+   * The same coach object drives both the Magnus state and
+   * the readable coaching explanation.
+   */
+  updateMagnusFromCoach();
+  renderCoachCore();
+  el.cardBtn.classList.add("hidden");   // nothing to report until this game is reviewed
+  el.cardCopyBtn.classList.add("hidden");
+  window.__card = null;
+  state.opening = detectOpening(parsed.moves);
+  state.hasClocks = parsed.moves.some((m) => m.spent != null);
+  // A pasted game has no site to point at; the importers set this again after.
+  state.source = null;
+  // Any other import path (paste / FEN / sample / share link) deselects the
+  // account game list; openAccountGame re-selects the row it just opened.
+  state.acct.activeId = null;
+  renderGameList();
+  renderShareBar();
+  renderImportBar();
+  renderHeader();
+  renderOpening();
+  renderMoveList();
+  el.summary.classList.add("hidden");
+  el.accStrip.classList.add("hidden");
+  el.phases.classList.add("hidden");
+  el.coachCard.classList.add("hidden");
+  el.reviewBtn.disabled = !state.moves.length || !state.booted;
+  renderModeUi();          // mode-owned visibility (import card, play bar, review lock)
+  goto(0);
+}
+
+// ---------- rendering ----------
+function renderReviewHeader() {
+  const R = state.review;
+
+  if (!R || !state.reviewed) {
+    el.reviewHeaderCard.classList.add("hidden");
+  const playerCompareCard = document.getElementById('playerCompareCard');
+  if (playerCompareCard) playerCompareCard.classList.add('hidden');
+    return;
+  }
+
+  const h = state.headers || {};
+  const white = h.White || "White";
+  const black = h.Black || "Black";
+  const bits = [];
+
+  if (h.Date) bits.push(h.Date.replace(/\\./g, "-"));
+  if (h.ECO) bits.push("ECO " + h.ECO);
+  if (h.Result) bits.push(h.Result);
+  if (R.opening && R.opening[1]) bits.push(R.opening[1]);
+
+  el.reviewGameTitle.textContent = white + "  vs  " + black;
+
+  el.reviewGameMeta.textContent = bits.length
+    ? bits.join("  ?  ")
+    : "Full-game review ? Magnus engine";
+
+  const side = playerSide(
+    { white: white, black: black },
+    state.acct && state.acct.user
+  );
+
+  const sideAccuracy = side === "b" ? R.accBlack : R.accWhite;
+
+  const fallbackAccuracy =
+    sideAccuracy != null
+      ? sideAccuracy
+      : ((Number(R.accWhite || 0) + Number(R.accBlack || 0)) / 2);
+
+  el.reviewAccuracy.textContent =
+    Number.isFinite(fallbackAccuracy)
+      ? fallbackAccuracy.toFixed(1) + "%"
+      : "?";
+
+  const est = R.est && (side === "b" ? R.est.b : R.est.w);
+
+  el.reviewGameRating.textContent = est
+    ? est.lo + "?" + est.hi
+    : "?";
+
+  const counts = R.counts || { w: {}, b: {} };
+  const myCounts = side === "b" ? counts.b : side === "w" ? counts.w : null;
+
+  const count = (key) =>
+    myCounts ? Number(myCounts[key] || 0) : 0;
+
+  const best =
+    count("best") +
+    count("brilliant") +
+    count("great");
+
+  const errors =
+    count("inaccuracy") +
+    count("mistake") +
+    count("blunder") +
+    count("miss");
+
+  el.reviewBestCount.textContent = String(best);
+  el.reviewErrors.textContent = String(errors);
+
+  // CHESSMATE_PLAYER_COMPARE_V1: reuse the existing review results.
+  const pc = (id) => document.getElementById(id);
+  const pcCounts = R.counts || { w: {}, b: {} };
+  const myPcCounts = side === "b" ? pcCounts.b : side === "w" ? pcCounts.w : null;
+  const pcCount = (key) =>
+    myPcCounts ? Number(myPcCounts[key] || 0) : null;
+  const pcAccuracy = (value) =>
+    Number.isFinite(Number(value)) && value != null
+      ? Number(value).toFixed(1) + "%"
+      : "—";
+  const pcRating = (sideKey) => {
+    const estimate = R.est && R.est[sideKey];
+    return estimate && estimate.lo != null && estimate.hi != null
+      ? Math.round((Number(estimate.lo) + Number(estimate.hi)) / 2).toLocaleString() + " estimated"
+      : "Not available";
+  };
+
+  pc("pcWhiteName").textContent = white;
+  pc("pcBlackName").textContent = black;
+  pc("pcWhiteAccuracy").textContent = pcAccuracy(R.accWhite);
+  pc("pcBlackAccuracy").textContent = pcAccuracy(R.accBlack);
+  pc("pcWhiteRating").textContent = "Rating " + pcRating("w");
+  pc("pcBlackRating").textContent = "Rating " + pcRating("b");
+  const pcCountText = (key) => {
+    const value = pcCount(key);
+    return value == null ? "?" : String(value);
+  };
+  pc("pcBrilliant").textContent = pcCountText("brilliant");
+  pc("pcBest").textContent = pcCountText("best");
+  pc("pcGreat").textContent = pcCountText("great");
+  pc("pcGood").textContent = pcCountText("good");
+  pc("pcInaccuracies").textContent = pcCountText("inaccuracy");
+  pc("pcBlunders").textContent = pcCountText("blunder");
+  pc("playerCompareCard").classList.remove("hidden");
+  el.reviewHeaderCard.classList.add("hidden");
+}
+
+function closeGameReview() {
+  state.reviewed = false;
+  state.review = null;
+  state.explore = null;
+
+  el.reviewHeaderCard.classList.add("hidden");
+  const playerCompareCard = document.getElementById('playerCompareCard');
+  if (playerCompareCard) playerCompareCard.classList.add('hidden');
+  el.summary.classList.add("hidden");
+  el.accStrip.classList.add("hidden");
+  el.phases.classList.add("hidden");
+  el.coachCard.classList.add("hidden");
+
+  el.cardBtn.classList.add("hidden");
+  el.cardCopyBtn.classList.add("hidden");
+
+  el.reviewBtn.textContent = "Analyze game";
+  el.reviewBtn.classList.remove("cancel");
+  el.reviewBtn.disabled = !state.moves.length || !state.booted;
+
+  renderMoveList();
+  goto(state.ply);
+}
+
+function renderHeader() {
+  const h = state.headers;
+  const hasGame = !!(h.White || h.Black || state.moves.length);
+  el.hdrTitle.textContent = hasGame ? (h.White || "White") + "  vs  " + (h.Black || "Black")
+                                    : "Load a game to analyze";
+  el.pWName.textContent = h.White || "White";
+  el.pBName.textContent = h.Black || "Black";
+  el.pWElo.textContent = h.WhiteElo ? "(" + h.WhiteElo + ")" : "";
+  el.pBElo.textContent = h.BlackElo ? "(" + h.BlackElo + ")" : "";
+  const bits = [];
+  if (h.Date) bits.push(h.Date.replace(/\./g, "-"));
+  if (h.ECO) bits.push("ECO " + h.ECO);
+  if (h.Result) bits.push(h.Result);
+  if (h.Termination) bits.push(h.Termination);
+  el.hdrMeta.textContent = hasGame && bits.length ? bits.join("  ·  ")
+    : "Paste a PGN or FEN above, upload a .pgn file, or click Load sample.";
+}
+
+function renderOpening() {
+  const op = state.opening;
+  const homeOpening = document.getElementById("cmHomeOpening");
+
+  if (!op) {
+    el.openingName.classList.add("hidden");
+    if (homeOpening) {
+      homeOpening.textContent = "";
+      homeOpening.classList.add("hidden");
+    }
+    return;
+  }
+
+  const openingText = op[1] + "  ·  " + op[0];
+  el.openingName.textContent = openingText;
+  el.openingName.classList.remove("hidden");
+
+  if (homeOpening) {
+    homeOpening.textContent = openingText;
+    homeOpening.classList.remove("hidden");
+  }
+}
+
+function renderMoveList() {
+  const exploring = !!(state.explore && state.explore.chess);
+  const canonicalCount = exploring
+    ? Math.min(state.ply, state.moves.length)
+    : state.moves.length;
+
+  const M = state.moves.slice(0, canonicalCount);
+
+  // In Analyse mode, include the current variation in this SAME Moves panel.
+  if (exploring) {
+    const history = state.explore.chess.history();
+    for (const san of history) {
+      M.push({ san: san, explorationMove: true });
+    }
+  }
+
+  el.movelist.innerHTML = "";
+
+  if (!M.length) {
+    el.movelist.innerHTML =
+      '<div class="mvempty-msg">No moves - load a PGN, or make a move on the board.</div>';
+    return;
+  }
+
+  const rows = Math.ceil(M.length / 2);
+
+  for (let r = 0; r < rows; r++) {
+    const row = document.createElement("div");
+    row.className = "mvrow";
+
+    const no = document.createElement("div");
+    no.className = "no";
+    no.textContent = (r + 1) + ".";
+    row.appendChild(no);
+
+    for (const idx of [2 * r, 2 * r + 1]) {
+      const cell = document.createElement("div");
+
+      if (idx < M.length) {
+        const mv = M[idx];
+        cell.className = "mv";
+        cell.dataset.ply = String(idx + 1);
+
+        if (mv.explorationMove) {
+          cell.classList.add("exploration-move");
+        }
+
+        let inner = "";
+
+        if (!mv.explorationMove && state.reviewed) {
+          const cl = CLASSES[mv.cls];
+          if (cl) {
+            cell.dataset.class = mv.cls;
+            cell.title = cl.label;
+            const badgeFile = mv.cls === "blunder"
+              ? "blunder_double_question.png"
+              : mv.cls + ".png";
+            inner += '<img class="move-class-badge" src="assets/move-badges/' +
+              badgeFile + '" alt="' + esc(cl.label) + '" title="' +
+              esc(cl.label) + '" draggable="false">';
+          }
+        }
+
+        inner += '<span class="san">' + esc(mv.san) + "</span>";
+
+        if (!mv.explorationMove && state.reviewed && CLASSES[mv.cls]) {
+          inner += '<span class="ev">' +
+            fmtEval(mv.cpWhite, mv.mateWhite) + "</span>";
+        }
+
+        cell.innerHTML = inner;
+
+        // Only canonical game moves navigate the original game.
+        if (!mv.explorationMove) {
+          cell.addEventListener("click", () => {
+            state.explore = null;
+            renderMoveList();
+            goto(idx + 1);
+          });
+        }
+      } else {
+        cell.className = "mv empty";
+      }
+
+      row.appendChild(cell);
+    }
+
+    el.movelist.appendChild(row);
+  }
+}
+
+// There used to be an "estimated rating" here, mapped from accuracy by
+// 6.8 * exp(0.0575 * acc). Checked against 64 real games spanning 280-3414 Elo,
+// it was wrong by 1072 Elo on average: two players 2500 points apart produced
+// the SAME accuracy (88.4% -> real 322, 89.3% -> real 2826), and the curve
+// mathematically topped out near 2100, so every strong player was under-rated by
+// ~1700. Nor is it a matter of re-fitting: accuracy does correlate with strength
+// (r = 0.63), but even the best possible fit still misses by ~850 Elo, because a
+// quiet game inflates accuracy and a sharp one deflates it whoever is playing.
+// A number that wrong is worse than no number, so the estimate is gone.
+
+const PHASE_LABEL = { opening: "Opening", middlegame: "Middlegame", endgame: "Endgame" };
+
+// Accuracy by phase. One accuracy number says how well you played; three say WHERE you
+// played badly, which is the only one of them you can act on.
+function renderPhases() {
+  const P = state.review.phases;
+  if (!P) { el.phases.classList.add("hidden"); return; }
+  const rows = [];
+  for (const ph of ["opening", "middlegame", "endgame"]) {
+    const w = P[ph].w, b = P[ph].b;
+    if (!w && !b) continue;                       // neither side had a move to judge here
+    const cell = (x) => (x
+      ? '<span class="pn">' + x.acc + '%</span><span class="pc">' + x.n + "</span>"
+      : '<span class="pn dim">&#8212;</span><span class="pc"></span>');
+    rows.push('<div class="phaserow"><span class="pl">' + PHASE_LABEL[ph] + "</span>" +
+      '<span class="pv">' + cell(w) + "</span>" +
+      '<span class="pv">' + cell(b) + "</span></div>");
+  }
+  if (!rows.length) { el.phases.classList.add("hidden"); return; }
+  el.phaseRows.innerHTML = rows.join("");
+  el.phases.classList.remove("hidden");
+}
+
+// The plain-English "what to work on" card (js/summary.js). One paragraph per human
+// side; the bot never gets coached. Hidden until a game is reviewed.
+function renderCoach(botGame) {
+  if (!state.reviewed) { el.coachCard.classList.add("hidden"); return; }
+  const ctx = { moves: state.moves, review: state.review, opening: state.opening, headers: state.headers };
+  const blocks = [];
+  for (const c of ["w", "b"]) {
+    const nm = c === "w" ? state.headers.White : state.headers.Black;
+    if (botGame && /Magnus \(≈/.test(nm || "")) continue;   // don't lecture the engine
+    const text = gameSummary(c, ctx);
+    if (text) blocks.push('<p class="advp">' + esc(text) + "</p>");
+  }
+  el.coachBody.innerHTML = blocks.join("");
+  el.coachCard.classList.toggle("hidden", !blocks.length);
+}
+
+function renderSummary() {
+  const R = state.review;
+  el.summary.classList.remove("hidden");
+  // Headline accuracies stay up beside the board; the breakdown lives below.
+  // Each side also gets its rough game-rating estimate (see estimateElo for the
+  // long list of caveats — the ratingnote below the breakdown repeats the short one).
+  // A band, not a lone number — one game can't pin a rating (see estimateElo / NOTES),
+  // so the range and the "provisional" tag own that instead of hiding it in a footnote.
+  // Suppressed entirely for a game against the bot: the opponent's strength is one we
+  // SET (≈400), and beating a bot that hangs pieces makes anyone's play read strong, so
+  // the number would be pure noise. Detected from the bot's header name.
+  const botGame = /\b(?:Magnus|Stockfish)\s*\(/i.test(state.headers.White || "") ||
+                  /\b(?:Magnus|Stockfish)\s*\(/i.test(state.headers.Black || "");
+  const est = (v) => (v == null || botGame ? "" :
+    '<span class="est">game rating ≈ ' + v.lo + "–" + v.hi +
+    ' <span class="prov">provisional</span></span>');
+  el.accStrip.innerHTML =
+    '<div class="a"><b>' + R.accWhite + "%</b><span>" + esc(state.headers.White || "White") + "</span>" +
+      est(R.est && R.est.w) + "</div>" +
+    '<div class="a"><b>' + R.accBlack + "%</b><span>" + esc(state.headers.Black || "Black") + "</span>" +
+      est(R.est && R.est.b) + "</div>";
+  el.accStrip.classList.remove("hidden");
+  renderPhases();
+  renderTimeNote();
+  renderMotifNote();
+  renderCoach(botGame);
+  el.counts.innerHTML = "";
+
+  // Show both players' move-quality counts without changing classification.
+  const whiteCounts = R.counts && R.counts.w ? R.counts.w : {};
+  const blackCounts = R.counts && R.counts.b ? R.counts.b : {};
+
+  const summaryHeading = el.summary.querySelector(".chead");
+  if (summaryHeading) {
+    summaryHeading.innerHTML =
+      '<span class="count-spacer"></span>' +
+      '<span class="count-title">COUNT</span>' +
+      '<span>W</span><span>B</span>';
+  }
+
+  for (const k of CLASS_ORDER) {
+    const whiteValue = Number(whiteCounts[k] || 0);
+    const blackValue = Number(blackCounts[k] || 0);
+    const row = document.createElement("div");
+    row.className = "countrow";
+    row.innerHTML =
+      '<span class="g" style="background:var(' + CLASSES[k].v + ')">' + glyphSvg(k) + "</span>" +
+      '<span class="cl">' + CLASSES[k].label + "</span>" +
+      '<span class="cw">' + whiteValue + "</span>" +
+      '<span class="cb">' + blackValue + "</span>";
+    el.counts.appendChild(row);
+  }
+}
+
+// A single comparable number from the mover's point of view, so "is the engine's
+// move actually better than mine?" is one comparison. Mate scores dominate cp.
+function moverEval(cpWhite, mateWhite, color) {
+  const white = mateWhite != null ? (mateWhite > 0 ? 1e6 - mateWhite : -1e6 - mateWhite) : (cpWhite || 0);
+  return color === "w" ? white : -white;
+}
+function fmtEvalBar(cp, mate) {
+  if (mate != null) return "M" + Math.abs(mate);
+  if (Math.abs(cp || 0) >= MATE_CP) return "#";
+  return (Math.abs(cp || 0) / 100).toFixed(1);
+}
+function updateEvalBar(cp, mate) {
+  const wp = wpFromNode(cp, mate);
+  el.evalFill.style.transform = "scaleY(" + wp / 100 + ")";
+  el.evalNum.textContent = fmtEvalBar(cp, mate);
+  el.evalNum.className = "evalnum " + (wp >= 50 ? "bot" : "top");
+}
+
+function renderReadout() {
+  if (state.explain) {
+    el.readGlyph.style.background = "var(--best)";
+    el.readGlyph.textContent = "\u2605";
+    el.readMove.textContent = state.explain.title || "The best line";
+    el.readSub.innerHTML = "Step through it with <b>‹ ›</b>. Press <b>✓ Got it</b> to return.";
+    return;
+  }
+  if (state.explore) {
+    el.readGlyph.style.background = "var(--accent)";
+    el.readGlyph.textContent = "●";
+    el.readMove.textContent = "Analysis line";
+    el.readSub.innerHTML = "Exploring a variation. <b>Return to game</b> to resume review.";
+    return;
+  }
+  // A live bot game: the coach card is the "whose move is it" line, and nothing
+  // more — the engine's opinions stay out of a competitive game.
+  if (state.bot && !state.bot.over) {
+    el.readGlyph.style.background = "var(--accent)";
+    el.readGlyph.textContent = "♟";
+    el.readMove.textContent = "You vs " + botName(state.bot);
+    el.readSub.innerHTML = state.bot.thinking ? "Magnus is thinking..."
+      : "<b>Your move</b> — drag a piece or click it.";
+    return;
+  }
+  const mv = state.ply > 0 ? state.moves[state.ply - 1] : null;
+  if (!mv) {
+    el.readGlyph.style.background = "var(--muted)";
+    el.readGlyph.textContent = "◉";
+    el.readMove.textContent = "Starting position";
+    el.readSub.innerHTML = "Use ← → keys or click a move. <b>Drag a piece</b> (or click it) to explore lines.";
+    return;
+  }
+  if (state.reviewed) {
+    const cl = CLASSES[mv.cls];
+    el.readGlyph.style.background = "var(" + cl.v + ")";
+    el.readGlyph.innerHTML = glyphSvg(mv.cls);   // drawn mark, centred by geometry
+    el.readMove.textContent = mv.moveNo + (mv.color === "w" ? ". " : "... ") + mv.san + "  —  " + cl.label;
+    let sub = "Eval " + fmtEval(mv.cpWhite, mv.mateWhite);
+    if (mv.spent != null) sub += " · took " + fmtSecs(mv.spent);
+    if (mv.loss >= 5) sub += " · lost " + mv.loss + "% win chance";
+    el.readSub.innerHTML = sub;   // the "stronger move" suggestion lives in the assessment card
+  } else {
+    el.readGlyph.style.background = "var(--muted)";
+    el.readGlyph.textContent = "•";
+    el.readMove.textContent = mv.moveNo + (mv.color === "w" ? ". " : "... ") + mv.san;
+    el.readSub.innerHTML = (mv.spent != null ? "Took " + fmtSecs(mv.spent) + " · r" : "R") +
+      'un <b>Analyze game</b> for move classifications.';
+  }
+}
+
+// ---------- move animation ----------
+let playToken = 0; // cancels an in-flight line playback when the user does anything else
+function dispCR(square) {
+  const file = square.charCodeAt(0) - 97, rank = +square[1];
+  return { c: state.flip ? 7 - file : file, r: state.flip ? rank - 1 : 8 - rank };
+}
+// Slide the piece now sitting on `to` from where it started (FLIP technique).
+function animateMove(from, to) {
+  const pc = el.board.querySelector('[data-sq="' + to + '"] .pc');
+  if (!pc) return;
+  const size = el.board.getBoundingClientRect().width / 8;
+  const f = dispCR(from), t = dispCR(to);
+  const dx = (f.c - t.c) * size, dy = (f.r - t.r) * size;
+  pc.style.transition = "none";
+  pc.style.transform = "translate(" + dx + "px," + dy + "px)";
+  pc.getBoundingClientRect(); // force reflow so the next frame animates
+  requestAnimationFrame(() => { pc.style.transition = "transform .2s ease"; pc.style.transform = "translate(0,0)"; });
+}
+
+// The Chess.com-style celebration for a rare move. Fired once, when you step
+// FORWARD onto a brilliant or great move (like the move sound and animation).
+// The element is appended to the destination square, which the next drawBoard
+// rebuilds away — so navigating on naturally cancels an in-flight flourish and
+// at most one can ever exist.
+const FLOURISH = { brilliant: "Brilliant!", great: "Great!" };
+function flourish(mv) {
+  if (!FLOURISH[mv.cls] || !CLASSES[mv.cls]) return;
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const sq = el.board.querySelector('[data-sq="' + mv.to + '"]');
+  if (!sq) return;
+  // Where the square sits on screen decides which way the label points, so it
+  // never spills off the board edge.
+  const file = mv.to.charCodeAt(0) - 97, rank = +mv.to[1];
+  const col = state.flip ? 7 - file : file;
+  const row = state.flip ? rank - 1 : 8 - rank;
+
+  const wrap = document.createElement("div");
+  wrap.className = "flourish";
+  wrap.style.setProperty("--fl-col", "var(" + CLASSES[mv.cls].v + ")");
+  const fill = document.createElement("div"); fill.className = "fl-fill";
+  const glyph = document.createElement("div");
+  glyph.className = "fl-glyph image-fl-glyph";
+  const badgeFile = mv.cls === "blunder"
+    ? "blunder_double_question.png"
+    : mv.cls + ".png";
+  const badgeImg = document.createElement("img");
+  badgeImg.src = "assets/move-badges/" + badgeFile;
+  badgeImg.alt = CLASSES[mv.cls].label;
+  badgeImg.draggable = false;
+  glyph.appendChild(badgeImg);
+  const bubble = document.createElement("div"); bubble.className = "fl-bubble"; bubble.textContent = FLOURISH[mv.cls];
+  if (row === 0) bubble.classList.add("below");
+  if (col <= 1) bubble.classList.add("right");
+  else if (col >= 6) bubble.classList.add("left");
+  wrap.append(fill, glyph, bubble);
+  sq.appendChild(wrap);
+  setTimeout(() => wrap.remove(), 1450);
+}
+
+function drawBoard() {
+  const fen = currentFen();
+  let lastMove = null, badge = null;
+  const arrows = [];
+  if (state.magnusArrow) {
+    arrows.push({
+      from: state.magnusArrow.from,
+      to: state.magnusArrow.to,
+      color: "#d4a017"
+    });
+  }
+  if (state.explore) {
+    const h = state.explore.chess.history({ verbose: true });
+    const last = h[h.length - 1];
+    if (last) lastMove = { from: last.from, to: last.to };
+    if (state.explore.arrow) arrows.push({ from: state.explore.arrow.from, to: state.explore.arrow.to, color: "#f7b34c" });
+  } else if (state.ply > 0) {
+    const mv = state.moves[state.ply - 1];
+    lastMove = { from: mv.from, to: mv.to };
+    if (state.reviewed) badge = { square: mv.to, cls: mv.cls };
+  }
+  const hlClass = badge ? badge.cls : null;
+  const targets = state.selected ? legalTargets(fen, state.selected) : [];
+  for (const a of state.userArrows) arrows.push(a);          // user annotations on top
+  if (state.arrowPreview) arrows.push(state.arrowPreview);   // the one being dragged now
+  renderBoard(el.board, fen, {
+    flip: state.flip, lastMove, badge, hlClass, selected: state.selected, targets, arrows,
+    marks: state.userMarks,
+    onSquareClick: onSquareClick,
+    onSquareDown: onSquareDown,
+  });
+  hoverSq = null;                    // the squares were just rebuilt
+  renderMaterial(fen);
+  updateHomeGameEndOverlay();
+}
+
+// ---------- Magnus arrow-only refresh ----------
+
+// ---------- Magnus arrow-only refresh ----------
+function refreshMagnusArrowOnly() {
+  // Live engine updates must not rebuild the board while a piece is being dragged.
+  // The latest Magnus arrow remains in state and will be rendered after the drag.
+  if (drag) return;
+
+  // A board redraw must preserve the selected reviewed-move badge and highlights.
+  drawBoard();
+}
+
+function legalTargets(fen, sq) {
+  try {
+    const c = new Chess(fen);
+    return c.moves({ square: sq, verbose: true }).map((m) => m.to);
+  } catch (e) { return []; }
+}
+
+// ---------- navigation ----------
+async function loadCoachGame(gameId) {
+  if (!Number.isInteger(Number(gameId)) || Number(gameId) <= 0) {
+    state.coachGame = null;
+    state.coachByPly = new Map();
+    state.coachGameId = null;
+    return null;
+  }
+
+  const id = Number(gameId);
+
+  /*
+   * Already loaded for this exact game.
+   */
+  if (
+    state.coachGame &&
+    state.coachGameId === id &&
+    state.coachByPly.size
+  ) {
+    return state.coachGame;
+  }
+
+  state.coachLoading = true;
+  state.coachGame = null;
+  state.coachByPly = new Map();
+  state.coachGameId = id;
+
+  try {
+    if (!window.ChessMateMagnusAPI) {
+      throw new Error("Shared Magnus Coach API module is not loaded.");
+    }
+
+    const coachGame = await window.ChessMateMagnusAPI.getGame(id);
+
+    /*
+     * Index by ply so the frontend review and the canonical
+     * GameMove database remain connected without guessing IDs.
+     */
+    const byPly = new Map();
+
+    for (const move of coachGame.moves || []) {
+      const ply = Number(
+        move?.context?.ply ??
+        move?.ply
+      );
+
+      if (Number.isInteger(ply) && ply > 0) {
+        byPly.set(ply, move);
+      }
+    }
+
+    state.coachGame = coachGame;
+
+    state.coachByPly = byPly;
+
+    renderGameCoachCore();
+
+    console.log(
+      `[Coach] Game ${id}: loaded ${byPly.size}/${coachGame.move_count || 0} moves`
+    );
+
+    return coachGame;
+
+  } catch (error) {
+
+    console.warn(
+      `[Coach] Could not load game ${id}:`,
+      error
+    );
+
+    state.coachGame = null;
+    state.coachByPly = new Map();
+
+    return null;
+
+  } finally {
+    state.coachLoading = false;
+  }
+}
+
+function currentCoachAnalysis() {
+  /*
+   * Coach data belongs to the canonical game, not to an
+   * exploratory variation.
+   *
+   * During analysis-line exploration we deliberately do not
+   * reuse the original game's coaching object for the same ply.
+   */
+  if (state.ply <= 0) {
+    return null;
+  }
+
+  if (state.explore) {
+    return null;
+  }
+
+  if (!state.coachByPly || !state.coachByPly.size) {
+    return null;
+  }
+
+  return state.coachByPly.get(state.ply) || null;
+}
+function initMagnusCoach() {
+  const root = document.getElementById("magnusCoach");
+
+  if (!root || !window.MagnusCoach) {
+    console.warn("Magnus Coach UI/controller not available.");
+    return;
+  }
+
+  state.magnusCoach = new window.MagnusCoach(root);
+  state.magnusCoach.setState("thinking");
+}
+
+function highlightCoachMove() {
+  const list = document.querySelector("#movelist");
+
+  if (!list) return;
+
+  list.querySelectorAll(".coach-move-active").forEach((node) => {
+    node.classList.remove("coach-move-active");
+  });
+
+  if (!state.ply || state.ply <= 0) return;
+
+  /*
+   * Existing move-list elements may expose data-ply.
+   */
+  const direct = list.querySelector(
+    `[data-ply="${state.ply}"]`
+  );
+
+  if (direct) {
+    direct.classList.add("coach-move-active");
+    direct.scrollIntoView({
+      block: "nearest",
+      behavior: "smooth"
+    });
+    return;
+  }
+
+  /*
+   * Fallback for the existing move-list DOM.
+   */
+  const candidates = Array.from(
+    list.querySelectorAll(
+      ".mv, .move, .move-row, .mrow, button"
+    )
+  ).filter((node) => node.offsetParent !== null);
+
+  if (candidates.length >= state.moves.length) {
+    const candidate = candidates[state.ply - 1];
+
+    if (candidate) {
+      candidate.classList.add("coach-move-active");
+      candidate.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth"
+      });
+    }
+  }
+}
+function renderGameCoachCore() {
+  const card = document.querySelector("#coachCard");
+  const body = document.querySelector("#coachBody");
+
+  if (!card || !body) return;
+
+  /*
+   * The canonical Coach API is loaded per game into
+   * state.coachGame.
+   */
+  const game = state.coachGame;
+
+  if (!game || !Array.isArray(game.moves) || !game.moves.length) {
+    return;
+  }
+
+  const moves = game.moves.filter(Boolean);
+
+  /*
+   * Sort by CPL so the most consequential mistakes come first.
+   */
+  const ranked = moves
+    .filter((move) => {
+      const label =
+        String(move?.classification?.label || "").toLowerCase();
+
+      return (
+        label === "blunder" ||
+        label === "mistake" ||
+        label === "inaccuracy"
+      );
+    })
+    .sort((a, b) => {
+      const ac = Number(a?.classification?.cp_loss ?? 0);
+      const bc = Number(b?.classification?.cp_loss ?? 0);
+      return bc - ac;
+    });
+
+  /*
+   * Preserve a terminal checkmate as a dedicated turning point.
+   * It must not be treated as an ordinary blunder or CPL ranking.
+   */
+  const checkmateMove = [...moves].reverse().find((move) => {
+    const category = String(move?.consequence?.category || "").toLowerCase();
+    const headline = String(move?.explanation?.headline || "").toLowerCase();
+    const san = String(move?.context?.san || move?.san || "");
+
+    return (
+      category === "checkmate" ||
+      headline.includes("checkmate") ||
+      san.includes("#")
+    );
+  });
+  const tacticalMoves = moves.filter((move) => {
+    const tactical =
+      move?.reasoning?.tactical_effect ||
+      move?.explanation?.what_you_missed ||
+      move?.explanation?.why_it_is_wrong;
+
+    return Boolean(tactical);
+  });
+
+  const lessons = [];
+  const seenLessons = new Set();
+
+  for (const move of moves) {
+    const lesson =
+      move?.explanation?.lesson ||
+      move?.reasoning?.practical_effect ||
+      null;
+
+    if (!lesson) continue;
+
+    const normalized = String(lesson).trim();
+
+    if (!normalized || seenLessons.has(normalized)) continue;
+
+    seenLessons.add(normalized);
+    lessons.push(normalized);
+
+    if (lessons.length >= 4) break;
+  }
+
+  body.replaceChildren();
+
+  const addBlock = (label, text, className = "") => {
+    if (!text) return;
+
+    const block = document.createElement("div");
+    block.className = "game-coach-block";
+
+    if (className) {
+      block.classList.add(className);
+    }
+
+    const title = document.createElement("div");
+    title.className = "game-coach-label";
+    title.textContent = label;
+
+    const value = document.createElement("div");
+    value.className = "game-coach-value";
+    value.textContent = String(text);
+
+    block.appendChild(title);
+    block.appendChild(value);
+    body.appendChild(block);
+  };
+
+  const playerColor =
+    game?.white === state.headers?.White
+      ? "White"
+      : game?.black === state.headers?.Black
+        ? "Black"
+        : null;
+
+  /*
+   * Overall verdict.
+   */
+  let verdict = "This game was generally stable.";
+
+  if (ranked.length >= 3) {
+    verdict =
+      `The biggest improvement area is avoiding ${ranked.length} ` +
+      `significant mistakes and inaccuracies.`;
+  }
+  else if (ranked.length === 2) {
+    verdict =
+      "Two critical moments had the largest impact on the game.";
+  }
+  else if (ranked.length === 1) {
+    verdict =
+      "One critical moment had the largest impact on the game.";
+  }
+
+  addBlock(
+    "Coach overview",
+    playerColor
+      ? `${playerColor}: ${verdict}`
+      : verdict,
+    "game-coach-overview"
+  );
+
+  /*
+   * Terminal checkmate — shown separately from mistake rankings.
+   */
+  if (checkmateMove) {
+    const ply = Number(checkmateMove?.context?.ply ?? checkmateMove?.ply ?? 0);
+    const san = checkmateMove?.context?.san || checkmateMove?.san || "Checkmate";
+    const explanation =
+      checkmateMove?.explanation?.summary ||
+      checkmateMove?.consequence?.description ||
+      "The opposing king is checkmated. The game ends immediately.";
+
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "game-coach-turning-point game-coach-checkmate";
+    item.dataset.ply = String(ply);
+
+    const top = document.createElement("div");
+    top.className = "game-coach-turning-top";
+
+    const moveName = document.createElement("strong");
+    moveName.textContent = ply > 0
+      ? `Final result · Move ${Math.ceil(ply / 2)} · ${san}`
+      : `Final result · ${san}`;
+
+    const verdict = document.createElement("span");
+    verdict.className = "game-coach-verdict";
+    verdict.textContent = "CHECKMATE — GAME WON";
+
+    top.appendChild(moveName);
+    top.appendChild(verdict);
+
+    const reason = document.createElement("div");
+    reason.className = "game-coach-turning-reason";
+    reason.textContent = explanation;
+
+    item.appendChild(top);
+    item.appendChild(reason);
+
+    item.addEventListener("click", () => {
+      if (Number.isInteger(ply) && ply > 0) goto(ply);
+    });
+
+    body.appendChild(item);
+  }
+
+  /*
+   * Biggest turning points.
+   */
+  if (ranked.length) {
+
+    const heading = document.createElement("div");
+    heading.className = "game-coach-section-title";
+    heading.textContent = "Biggest turning points";
+    body.appendChild(heading);
+
+    ranked.slice(0, 3).forEach((move) => {
+
+      const ply = Number(
+        move?.context?.ply ??
+        move?.ply ??
+        0
+      );
+
+      const san =
+        move?.context?.san ||
+        move?.san ||
+        "?";
+
+      const label =
+        String(
+          move?.classification?.label ||
+          "analysis"
+        );
+
+      const cpLoss =
+        Number(move?.classification?.cp_loss);
+
+      const explanation =
+        move?.explanation?.summary ||
+        move?.reasoning?.primary_reason ||
+        "This move changed the evaluation.";
+
+      const better =
+        move?.explanation?.better_move ||
+        move?.reasoning?.better_move ||
+        null;
+
+      const item = document.createElement("button");
+
+      item.type = "button";
+      item.className =
+        "game-coach-turning-point " +
+        "game-coach-" +
+        label.toLowerCase();
+
+      item.dataset.ply = String(ply);
+
+      const top = document.createElement("div");
+      top.className = "game-coach-turning-top";
+
+      const moveName = document.createElement("strong");
+      moveName.textContent =
+        ply > 0
+          ? `Move ${Math.ceil(ply / 2)} · ${san}`
+          : san;
+
+      const verdict = document.createElement("span");
+      verdict.className = "game-coach-verdict";
+      const isMateSentinel = Number.isFinite(cpLoss) && cpLoss >= 100000;
+
+      verdict.textContent =
+        label +
+        (
+          isMateSentinel
+            ? " · Forced mate"
+            : Number.isFinite(cpLoss)
+              ? ` · ${Math.round(cpLoss)} CPL`
+              : ""
+        );
+
+      top.appendChild(moveName);
+      top.appendChild(verdict);
+
+      const reason = document.createElement("div");
+      reason.className = "game-coach-turning-reason";
+      reason.textContent = explanation;
+
+      item.appendChild(top);
+      item.appendChild(reason);
+
+      if (better) {
+        const betterText = document.createElement("div");
+        betterText.className = "game-coach-turning-better";
+        betterText.textContent = `Better: ${better}`;
+        item.appendChild(betterText);
+      }
+
+      item.addEventListener("click", () => {
+        if (Number.isInteger(ply) && ply > 0) {
+          goto(ply);
+        }
+      });
+
+      body.appendChild(item);
+    });
+  }
+
+  /*
+   * Repeated tactical theme.
+   */
+  if (tacticalMoves.length) {
+
+    const tacticalText =
+      tacticalMoves.length === 1
+        ? "A tactical idea was involved in one critical position."
+        : `${tacticalMoves.length} positions involved tactical ideas.`;
+
+    addBlock(
+      "Tactical pattern",
+      tacticalText,
+      "game-coach-tactical"
+    );
+  }
+
+  /*
+   * Training lessons.
+   */
+  if (lessons.length) {
+
+    const heading = document.createElement("div");
+    heading.className = "game-coach-section-title";
+    heading.textContent = "Training lessons";
+    body.appendChild(heading);
+
+    const list = document.createElement("ul");
+    list.className = "game-coach-lessons";
+
+    lessons.forEach((lesson) => {
+      const item = document.createElement("li");
+      item.textContent = lesson;
+      list.appendChild(item);
+    });
+
+    body.appendChild(list);
+  }
+
+  /*
+   * Make the existing card visible.
+   */
+  card.classList.remove("hidden");
+}
+function renderCoachCore() {
+  const coach = currentCoachAnalysis();
+
+  const message = document.querySelector(".magnus-coach-message-body");
+  const messageLabel = document.querySelector(".magnus-coach-message-label");
+
+  /*
+   * No canonical Coach result for this position.
+   */
+  if (!coach) {
+    if (messageLabel) {
+      messageLabel.textContent = "MAGNUS COACH";
+    }
+
+    if (message) {
+      message.textContent =
+        state.ply === 0
+          ? "Select a reviewed move to see detailed coaching."
+          : state.explore
+            ? "Return to game to resume Magnus coaching."
+            : "Coach analysis is not available for this move yet.";
+    }
+
+    return;
+  }
+
+  const classification =
+    coach?.classification?.label ||
+    "analysis";
+
+  const explanation = coach?.explanation || {};
+  const reasoning = coach?.reasoning || {};
+
+  const headline =
+    explanation.headline ||
+    reasoning.primary_reason ||
+    "Coach analysis";
+
+  const summary =
+    explanation.summary ||
+    reasoning.primary_reason ||
+    "";
+
+  const betterMove =
+    explanation.better_move ||
+    reasoning.better_move ||
+    null;
+
+  const whyBetter =
+    explanation.why_better ||
+    reasoning.better_move_reason ||
+    null;
+
+  const tactical =
+    reasoning.tactical_effect ||
+    null;
+
+  const strategic =
+    reasoning.strategic_effect ||
+    null;
+
+  const lesson =
+    explanation.lesson ||
+    reasoning.practical_effect ||
+    null;
+
+  const movePlayed =
+    explanation.what_you_played ||
+    coach?.context?.san ||
+    null;
+
+  const whyWrong =
+    explanation.why_it_is_wrong ||
+    null;
+
+  if (messageLabel) {
+    messageLabel.textContent =
+      "MAGNUS COACH • " +
+      String(classification).toUpperCase();
+  }
+
+  if (message) {
+    message.replaceChildren();
+
+    const addSection = (label, text, emphasis = false) => {
+      if (!text) return;
+
+      const block = document.createElement("div");
+      block.className = "coach-text-block";
+
+      const title = document.createElement("div");
+      title.className = "coach-text-label";
+      title.textContent = label;
+
+      const body = document.createElement("div");
+      body.className =
+        emphasis
+          ? "coach-text-value coach-text-emphasis"
+          : "coach-text-value";
+
+      body.textContent = String(text);
+
+      block.appendChild(title);
+      block.appendChild(body);
+      message.appendChild(block);
+    };
+
+    addSection("What happened", headline, true);
+
+    if (summary && summary !== headline) {
+      addSection("Summary", summary);
+    }
+
+    addSection("You played", movePlayed);
+
+    addSection("Why", whyWrong);
+
+    addSection("Tactical effect", tactical);
+
+    addSection("Strategic effect", strategic);
+
+    addSection("Better move", betterMove, true);
+
+    addSection("Why better", whyBetter);
+
+    addSection("Lesson", lesson);
+  }
+}
+function updateMagnusFromCoach() {
+  if (!state.magnusCoach) return;
+
+  const coach = currentCoachAnalysis();
+
+  if (!coach) {
+    state.magnusCoach.setState("thinking");
+    state.magnusCoach.talking(false);
+    return;
+  }
+
+  state.magnusCoach.setState(null, coach);
+
+  /*
+   * A real Coach result means Magnus should actively react,
+   * not remain in the neutral thinking state.
+   */
+  state.magnusCoach.talking(
+    Boolean(
+      coach?.explanation?.summary ||
+      coach?.explanation?.headline ||
+      coach?.explanation?.lesson ||
+      coach?.reasoning?.primary_reason
+    )
+  );
+}
+function goto(ply) {
+  const prev = state.ply;
+  clearUserDrawings();          // annotations belong to the position you drew them on
+  if (state.explain) { state.explain = null; el.explainBar.classList.add("hidden"); }
+  playToken++;
+  state.ply = Math.max(0, Math.min(state.moves.length, ply));
+  state.selected = null;
+
+  /*
+   * Magnus + Coach Core react to the canonical Coach analysis
+   * indexed by the currently selected ply.
+   *
+   * The same coach object drives both the Magnus state and
+   * the readable coaching explanation.
+   */
+  updateMagnusFromCoach();
+  renderCoachCore();
+  highlightCoachMove();  drawBoard();
+  if (state.ply === prev + 1 && state.ply > 0) {
+    const m = state.moves[state.ply - 1]; animateMove(m.from, m.to); playMoveSound(m);
+    if (state.reviewed) { flourish(m); celebrateSound(m.cls); }
+  } else if (state.ply === prev - 1 && prev > 0) {
+    const m = state.moves[prev - 1]; animateMove(m.to, m.from); playMoveSound(m);
+  }
+  renderReadout();
+  renderAssessment();
+  // eval bar: prefer reviewed data, else let live analysis fill it in.
+  if (state.reviewed && state.ply > 0) {
+    const mv = state.moves[state.ply - 1];
+    updateEvalBar(mv.cpWhite, mv.mateWhite);
+  } else if (state.ply === 0) {
+    updateEvalBar(20, null);
+  }
+  document.querySelectorAll(".mv").forEach((e) =>
+    e.classList.toggle("active", +e.dataset.ply === state.ply));
+  const act = document.querySelector(".mv.active");
+  if (act) act.scrollIntoView({ block: "nearest" });
+  drawEvalGraph();
+  drawTimeGraph();
+  restartLive();
+}
+
+// ---------- move exploration: click-to-move and drag-and-drop ----------
+
+// Play from -> to on the exploration board. `animate` is off for drags, where
+// the user's hand has already carried the piece across.
+function tryPlayMove(from, to, animate) {
+  // Outside plain analysis a board move is a move IN the game — unless a
+  // walk-through or a clicked engine line is open, or a finished bot game is being
+  // analysed, where the usual exploration branching applies.
+  if (state.mode !== "analyze" && !state.explore && !state.explain && !(state.bot && state.bot.over)) {
+    if (state.mode === "bot" && !state.bot) return false;         // no game yet: board is idle
+    if (botActive() && state.bot.thinking) return false;          // wait for the reply
+    return commitMove(from, to, null, animate);
+  }
+  const fen = currentFen();
+  const c = new Chess(fen);
+  let mv;
+  try { mv = c.move({ from, to, promotion: "q" }); }
+  catch (e) { return false; }        // not a legal move
+  if (!mv) return false;
+
+  if (!state.explore) state.explore = { base: fen, chess: new Chess(fen) };
+  state.explore.chess.move({ from, to, promotion: "q" });
+  renderMoveList();
+  state.explore.arrow = null;
+  state.selected = null;
+
+  /*
+   * Magnus + Coach Core react to the canonical Coach analysis
+   * indexed by the currently selected ply.
+   *
+   * The same coach object drives both the Magnus state and
+   * the readable coaching explanation.
+   */
+  updateMagnusFromCoach();
+  renderCoachCore();
+  el.exploreBar.classList.remove("hidden");
+  renderExploreLine();
+  drawBoard();
+  if (animate) animateMove(from, to);
+  playMoveSound(mv);
+  renderReadout(); renderAssessment(); restartLive();
+  return true;
+}
+
+function pieceCanMove(fen, square) {
+  const c = new Chess(fen);
+  const piece = c.get(square);
+  if (!piece || piece.color !== (fen.split(" ")[1] || "w")) return false;
+  // In a live bot game only the player's pieces answer to the hand, and only
+  // while the engine isn't thinking. Before a game starts, the board is idle.
+  if (botActive() && (state.bot.thinking || piece.color !== state.bot.color)) return false;
+  if (state.mode === "bot" && !state.bot) return false;
+  return true;
+}
+
+let lastDropAt = 0;   // swallows the click a completed drag leaves behind
+
+function onSquareClick(name) {
+  if (state.reviewing) return;
+  if (Date.now() - lastDropAt < 250) return;
+  clearUserDrawings();               // any left click wipes the drawn annotations
+  playToken++;
+  const fen = currentFen();
+  if (state.selected && state.selected !== name && tryPlayMove(state.selected, name, true)) return;
+  state.selected = pieceCanMove(fen, name) ? name : null;
+  drawBoard();
+}
+
+// ---------- dragging ----------
+// The piece stays in its square and is carried by a transform, so the board
+// keeps its layout; on drop we hand off to the same tryPlayMove as clicking.
+let drag = null;
+let hoverSq = null;
+
+function squareAt(x, y) {
+  const r = el.board.getBoundingClientRect();
+  if (x < r.left || x >= r.right || y < r.top || y >= r.bottom) return null;
+  const dc = Math.floor(((x - r.left) / r.width) * 8);
+  const dr = Math.floor(((y - r.top) / r.height) * 8);
+  const file = state.flip ? 7 - dc : dc;
+  const rank = state.flip ? dr + 1 : 8 - dr;
+  return "abcdefgh"[file] + rank;
+}
+function setHover(name) {
+  if (hoverSq === name) return;
+  const prev = hoverSq && el.board.querySelector('[data-sq="' + hoverSq + '"]');
+  if (prev) prev.classList.remove("over");
+  hoverSq = name;
+  const next = name && el.board.querySelector('[data-sq="' + name + '"]');
+  if (next) next.classList.add("over");
+}
+function carry(x, y) {
+  const { pc, home } = drag;
+  pc.style.transform = "translate(" + (x - home.x) + "px," + (y - home.y) + "px) scale(1.06)";
+}
+
+function onSquareDown(name, ev) {
+  if (ev.button === 2) { startArrow(name, ev); return; }  // right button = draw an arrow / mark
+  if (ev.button > 0 || state.reviewing || drag) return;   // left button / primary touch only
+  if (!pieceCanMove(currentFen(), name)) return;          // not your piece: leave it to click
+  clearUserDrawings();                                    // starting a move wipes annotations
+
+  playToken++;
+  state.selected = name;
+  drawBoard();                       // paints the selection and the legal targets
+
+  // drawBoard() rebuilt the squares, so grab the piece element that exists now.
+  const sq = el.board.querySelector('[data-sq="' + name + '"]');
+  const pc = sq && sq.querySelector(".pc");
+  if (!pc) return;
+
+  const r = sq.getBoundingClientRect();
+  drag = { from: name, pc, moved: false, home: { x: r.left + r.width / 2, y: r.top + r.height / 2 } };
+  pc.classList.add("dragging");
+  carry(ev.clientX, ev.clientY);
+  setHover(name);
+
+  window.addEventListener("pointermove", onDragMove);
+  window.addEventListener("pointerup", onDragEnd);
+  window.addEventListener("pointercancel", onDragEnd);
+  ev.preventDefault();               // no text selection / native image drag
+}
+
+function onDragMove(ev) {
+  if (!drag) return;
+  drag.moved = true;
+  carry(ev.clientX, ev.clientY);
+  setHover(squareAt(ev.clientX, ev.clientY));
+}
+
+function onDragEnd(ev) {
+  if (!drag) return;
+  window.removeEventListener("pointermove", onDragMove);
+  window.removeEventListener("pointerup", onDragEnd);
+  window.removeEventListener("pointercancel", onDragEnd);
+
+  const { from, pc, moved } = drag;
+  const to = ev.type === "pointercancel" ? null : squareAt(ev.clientX, ev.clientY);
+  pc.classList.remove("dragging");
+  pc.style.transform = "";
+  setHover(null);
+  drag = null;
+
+  // A press with no travel is just a click-select — keep the piece selected so
+  // the user can finish the move by clicking the destination.
+  if (!moved || !to || to === from) return;
+
+  lastDropAt = Date.now();
+  if (!tryPlayMove(from, to, false)) {
+    state.selected = null;
+
+  /*
+   * Magnus + Coach Core react to the canonical Coach analysis
+   * indexed by the currently selected ply.
+   *
+   * The same coach object drives both the Magnus state and
+   * the readable coaching explanation.
+   */
+  updateMagnusFromCoach();
+  renderCoachCore();           // dropped somewhere illegal: put it back
+    drawBoard();
+  }
+}
+
+// ---------- right-click annotations (arrows + square marks) ----------
+// Right-drag draws an arrow; a right-click without travel marks a square.
+// Drawing the same shape again toggles it off; a modifier key picks the colour
+// (Chess.com / Lichess convention). Any left click or navigation clears them.
+let arrowDraw = null;
+const ARROW_COLORS = { none: "#15781b", shift: "#a02c2c", alt: "#1f6fb0", ctrl: "#e0a53f" };
+function arrowColor(ev) {
+  if (ev.shiftKey) return ARROW_COLORS.shift;
+  if (ev.altKey) return ARROW_COLORS.alt;
+  if (ev.ctrlKey || ev.metaKey) return ARROW_COLORS.ctrl;
+  return ARROW_COLORS.none;
+}
+function clearUserDrawings() {
+  if (!state.userArrows.length && !state.userMarks.length && !state.arrowPreview) return false;
+  state.userArrows = []; state.userMarks = []; state.arrowPreview = null;
+  return true;
+}
+function startArrow(name, ev) {
+  ev.preventDefault();
+  arrowDraw = { from: name, previewTo: null };
+  window.addEventListener("pointermove", onArrowMove);
+  window.addEventListener("pointerup", onArrowUp);
+  window.addEventListener("pointercancel", onArrowCancel);
+}
+function onArrowMove(ev) {
+  if (!arrowDraw) return;
+  const to = squareAt(ev.clientX, ev.clientY);
+  if (to === arrowDraw.previewTo) return;               // only redraw when the target square changes
+  arrowDraw.previewTo = to;
+  state.arrowPreview = to && to !== arrowDraw.from ? { from: arrowDraw.from, to, color: arrowColor(ev) } : null;
+  drawBoard();
+}
+function onArrowUp(ev) {
+  endArrowListeners();
+  const from = arrowDraw && arrowDraw.from;
+  arrowDraw = null;
+  state.arrowPreview = null;
+  if (from) {
+    const to = squareAt(ev.clientX, ev.clientY);
+    const color = arrowColor(ev);
+    if (to === from) toggleMark(from, color);
+    else if (to) toggleArrow(from, to, color);
+  }
+  drawBoard();
+}
+function onArrowCancel() { endArrowListeners(); arrowDraw = null; state.arrowPreview = null; drawBoard(); }
+function endArrowListeners() {
+  window.removeEventListener("pointermove", onArrowMove);
+  window.removeEventListener("pointerup", onArrowUp);
+  window.removeEventListener("pointercancel", onArrowCancel);
+}
+function toggleArrow(from, to, color) {
+  const i = state.userArrows.findIndex((a) => a.from === from && a.to === to);
+  if (i < 0) state.userArrows.push({ from, to, color });
+  else if (state.userArrows[i].color === color) state.userArrows.splice(i, 1);   // same again -> remove
+  else state.userArrows[i].color = color;                                        // different colour -> recolour
+}
+function toggleMark(square, color) {
+  const i = state.userMarks.findIndex((m) => m.square === square);
+  if (i < 0) state.userMarks.push({ square, color });
+  else if (state.userMarks[i].color === color) state.userMarks.splice(i, 1);
+  else state.userMarks[i].color = color;
+}
+
+function renderExploreLine() {
+  if (!el.exploreBar) return;
+
+  const returnButton = $("returnGame");
+  const exploring = !!state.explore;
+
+  el.exploreBar.classList.toggle("hidden", !exploring);
+
+  // The variation notation is intentionally not rendered below the board.
+  // Keep the existing Return to game action available while exploring.
+  if (returnButton) {
+    returnButton.classList.toggle("hidden", !exploring);
+  }
+}
+
+function returnToGame() {
+  state.explore = null;
+  state.selected = null;
+
+  /*
+   * Magnus + Coach Core react to the canonical Coach analysis
+   * indexed by the currently selected ply.
+   *
+   * The same coach object drives both the Magnus state and
+   * the readable coaching explanation.
+   */
+  updateMagnusFromCoach();
+  renderCoachCore();
+  el.exploreBar.classList.add("hidden");
+  goto(state.ply);
+}
+
+// ---------- modes: analyze / free board / Play Magnus ----------
+// "analyze" is the app as it always was. "solo" records the moves you make (both
+// sides) as THE game, so you can lay out a line by hand and press Analyze on it.
+// "bot" is a game against a strength-limited Magnus — with the engine's mouth
+// taped shut until it ends: no eval bar, no live lines, no review button.
+
+// The engine's UCI_Elo floor is 1320, so the club-strength settings use it directly
+// and the lower ones fall back to Skill Level. But Skill Level 0 is not a beginner —
+// it still plays ~1000-1350 (it adds move-noise, it does not hang pieces), which is
+// why a "600" bot felt like a 1000. So below club strength the bot ALSO plays a
+// random legal move some fraction of the time (`blunder`) — an actual blunder, the
+// only way under Magnus's floor. The rate is chosen, not calibrated (measuring a
+// bot's Elo needs many games); what is certain is the direction — a random move at
+// rate p strictly lowers move quality. The ≈ labels are estimates, as before.
+// Weak settings also answer fast: nobody wants a 600 that thinks for seconds.
+const BOT_LEVELS = [
+  { label: "~400 - Learning the Moves", elo: 400, skill: 0, mt: 100, blunder: 0.35 },
+  { label: "~600 - Beginner", elo: 600, skill: 0, mt: 120, blunder: 0.22 },
+  { label: "~800 - Casual", elo: 800, skill: 0, mt: 150, blunder: 0.12 },
+  { label: "~1000 - Improving", elo: 1000, skill: 3, mt: 200, blunder: 0.05 },
+  { label: "~1200 - Club Beginner", elo: 1200, skill: 6, mt: 250 },
+  { label: "~1400 - Club Player", elo: 1400, uciElo: 1400, mt: 300 },
+  { label: "~1700 - Strong Club", elo: 1700, uciElo: 1700, mt: 350 },
+  { label: "~2000 - Expert", elo: 2000, uciElo: 2000, mt: 400 },
+  { label: "~2300 - Master", elo: 2300, uciElo: 2300, mt: 500 },
+  { label: "~2700 - Grandmaster", elo: 2700, uciElo: 2700, mt: 700 },
+];
+
+const botActive = () => !!(state.bot && !state.bot.over);
+const botName = (bot) => "Magnus (≈" + bot.lvl.elo + ")";
+
+function setMode(mode) {
+  if (mode === state.mode) {
+    // Re-clicking "Play Magnus" after a finished game brings the setup back.
+    if (mode === "bot" && state.bot && state.bot.over) { state.bot = null; renderModeUi(); renderReadout(); }
+    return;
+  }
+  if (botActive()) state.bot = null;          // switching modes abandons a live bot game
+  state.mode = mode;
+  document.querySelectorAll(".modetab").forEach((b) => b.classList.toggle("on", b.dataset.mode === mode));
+  state.explore = null;
+  el.exploreBar.classList.add("hidden");
+  if (state.explain) exitExplain();
+  renderModeUi();
+  renderReadout();
+  restartLive();
+}
+
+function renderModeUi() {
+  const active = botActive();
+  document.querySelector(".import").classList.toggle("hidden", state.mode !== "analyze");
+  el.playSetup.classList.toggle("hidden", state.mode !== "bot" || !!state.bot);
+  el.playBar.classList.toggle("hidden", state.mode === "analyze" || (state.mode === "bot" && !state.bot));
+  el.soloReset.classList.toggle("hidden", state.mode !== "solo");
+  el.botResign.classList.toggle("hidden", !active);
+  el.botRematch.classList.toggle("hidden", !(state.mode === "bot" && state.bot && state.bot.over));
+  // Competitive silence: while a bot game is on, every engine voice is off.
+  el.live.classList.toggle("hidden", active);
+  document.querySelector(".evalbar").classList.toggle("hidden", active);
+  el.reviewBtn.disabled = !state.moves.length || !state.booted || active;
+  if (state.mode === "solo") {
+    el.playTxt.innerHTML = "<b>Free board</b> — you move both sides, and every move joins the game.";
+  } else if (state.mode === "bot" && state.bot) {
+    el.playTxt.innerHTML = state.bot.over
+      ? "<b>" + esc(state.bot.note || "Game over") + "</b> — the review is unlocked."
+      : "Playing <b>" + esc(botName(state.bot)) + "</b> as " + (state.bot.color === "w" ? "White" : "Black") + ".";
+  }
+  refreshExplorer();   // hide it during a live bot game, bring it back when one ends
+}
+
+function startBot() {
+  if (!state.booted) return;
+  const lvl = BOT_LEVELS[+el.botElo.value] || BOT_LEVELS[3];
+  const color = state.botPick;
+  state.bot = { color, lvl, thinking: false, over: false, note: null };
+  loadGame({
+    headers: {
+      White: color === "w" ? "You" : botName(state.bot),
+      Black: color === "b" ? "You" : botName(state.bot),
+      Date: new Date().toISOString().slice(0, 10).replace(/-/g, "."),
+      Result: "*",
+    },
+    moves: [], startFen: DEFAULT_FEN,
+  });
+  state.flip = color === "b";
+  renderModeUi();
+  drawBoard();
+  renderReadout();
+  if (color === "b") botMove();
+}
+
+// A uniformly random legal move (UCI), for the weak-bot blunder path. Reads the
+// position only — never the engine — so it is instant, which also reads right: a
+// beginner's blunder comes fast, not after a long think.
+function randomLegalMove(fen) {
+  const c = new Chess(fen);
+  const ms = c.moves({ verbose: true });
+  if (!ms.length) return null;
+  const m = ms[Math.floor(Math.random() * ms.length)];
+  return m.from + m.to + (m.promotion || "");
+}
+
+async function botMove() {
+  const bot = state.bot;
+  if (!bot || bot.over || bot.thinking) return;
+  bot.thinking = true;
+  renderReadout();
+  const fen = state.moves.length ? state.moves[state.moves.length - 1].fenAfter : state.startFen;
+  let uci = null;
+  try {
+    // Beginner tiers drop a real blunder some fraction of the time (a random legal
+    // move), because Skill 0 alone floors around 1000 and never hangs a piece. The
+    // randomness lives ONLY here, in bot play — analyse()/live() still assert full
+    // strength before every search, so no evaluation is ever weakened.
+    const bl = bot.lvl.blunder || 0;
+    if (bl > 0 && Math.random() < bl) uci = randomLegalMove(fen);
+    if (!uci) uci = await state.engine.play(fen, { uciElo: bot.lvl.uciElo, skill: bot.lvl.skill, movetime: bot.lvl.mt });
+  } catch (e) { /* a dead engine just never answers; the game simply stalls visibly */ }
+  bot.thinking = false;
+  if (state.bot !== bot || bot.over) return;    // resigned / abandoned while it thought
+  if (uci) commitMove(uci.slice(0, 2), uci.slice(2, 4), uci.slice(4, 5) || null, true);
+  renderReadout();
+}
+
+// Play a move INTO the game (free board and bot games) rather than into an
+// exploration branch: the move list grows, the review is invalidated, and — on the
+// free board only — moving from an earlier position rewrites the game from there.
+function commitMove(from, to, promo, animate) {
+  if (state.ply < state.moves.length) {
+    if (state.mode === "bot") { goto(state.moves.length); return false; }  // move at the end
+    state.moves = state.moves.slice(0, state.ply);
+  }
+  const fen = state.moves.length ? state.moves[state.moves.length - 1].fenAfter : state.startFen;
+  const c = new Chess(fen);
+  let m;
+  try { m = c.move({ from, to, promotion: promo || "q" }); }
+  catch (e) { return false; }
+  if (!m) return false;
+  invalidateReview();
+  state.moves.push({
+    san: m.san, from: m.from, to: m.to, uci: m.from + m.to + (m.promotion || ""),
+    color: m.color, fenBefore: fen, fenAfter: c.fen(),
+    // the FEN's own fullmove counter, so a game grown from a FEN numbers correctly
+    moveNo: parseInt(fen.split(" ")[5] || "1", 10),
+  });
+  el.pgnInput.value = gamePgn();   // sharing / re-importing works like a pasted game
+  renderMoveList();
+  renderShareBar();
+  renderModeUi();                  // the first committed move unlocks Analyze (solo)
+  goto(state.moves.length);
+  if (botActive()) afterBotPly(c);
+  return true;
+}
+
+// A committed move ended a review's validity: the game it reviewed no longer exists.
+function invalidateReview() {
+  if (!state.reviewed && !state.review) return;
+  state.reviewed = false;
+  state.review = null;
+  el.summary.classList.add("hidden");
+  el.accStrip.classList.add("hidden");
+  el.phases.classList.add("hidden");
+  el.graphCard.classList.add("hidden");
+  el.timeCard.classList.add("hidden");
+  el.cardBtn.classList.add("hidden");
+  el.cardCopyBtn.classList.add("hidden");
+  window.__card = null;
+}
+
+// After any committed ply of a bot game: is it over, and whose turn is it?
+function afterBotPly(c) {
+  if (!botActive()) return;
+  const bot = state.bot;
+  if (c.isGameOver()) {
+    let result = "1/2-1/2", note = "Draw";
+    if (c.isCheckmate()) {
+      const winner = c.turn() === "w" ? "b" : "w";
+      result = winner === "w" ? "1-0" : "0-1";
+      note = (winner === bot.color ? "You won" : "Magnus won") + " by checkmate";
+    } else if (c.isStalemate()) note = "Draw by stalemate";
+    else if (c.isThreefoldRepetition()) note = "Draw by repetition";
+    else if (c.isInsufficientMaterial()) note = "Draw — insufficient material";
+    endBotGame(result, note);
+  } else if (c.turn() !== bot.color) {
+    botMove();
+  }
+}
+
+function endBotGame(result, note) {
+  const bot = state.bot;
+  if (!bot || bot.over) return;
+  bot.over = true;
+  bot.note = note;
+  state.headers.Result = result;
+  state.headers.Termination = note;
+  el.pgnInput.value = gamePgn();
+  renderHeader();
+  renderModeUi();     // review button unlocks, eval bar and live panel come back
+  renderReadout();
+  renderShareBar();
+  restartLive();
+}
+
+// A PGN of the game grown on the board, so share links and re-imports just work.
+function gamePgn() {
+  const h = state.headers || {};
+  const tags = [];
+  for (const k of ["White", "Black", "Date", "Result", "Termination"]) {
+    if (h[k]) tags.push("[" + k + ' "' + String(h[k]).replace(/"/g, "") + '"]');
+  }
+  if (state.startFen !== DEFAULT_FEN) tags.push('[SetUp "1"]', '[FEN "' + state.startFen + '"]');
+  let body = "";
+  state.moves.forEach((m, i) => {
+    if (m.color === "w") body += (body ? " " : "") + m.moveNo + ". " + m.san;
+    else body += (i === 0 ? m.moveNo + "... " : " ") + m.san;
+  });
+  if (h.Result && h.Result !== "*") body += (body ? " " : "") + h.Result;
+  return tags.join("\n") + "\n\n" + body + "\n";
+}
+
+// ---------- live engine ----------
+// Debounced + generation-guarded so rapid navigation never overlaps engine
+// searches (overlapping stop/position/go corrupts the WASM engine).
+let liveGen = 0;
+let liveTimer = null;
+// ---------- opening explorer / endgame tablebase (js/explorer.js) ----------
+// A bonus panel: what humans play here (Lichess DB), or perfect play once the board
+// is down to seven pieces (tablebase). It steps aside without a fuss when offline.
+let explorerTimer = null, explorerGen = 0;
+const explorerCache = new Map();   // "fen|band" -> normalized result, for this session
+
+function explorerVisible() {
+  // Silent during a competitive bot game and in a hidden tab — the same courtesies the
+  // live engine panel keeps — and on the bare opening board with nothing loaded. A game,
+  // an exploration line, or a position pasted as a FEN all count as something to look up.
+  if (!state.booted || document.hidden || botActive()) return false;
+  return state.moves.length > 0 || !!state.explore || state.startFen !== DEFAULT_FEN;
+}
+
+function refreshExplorer() {
+  clearTimeout(explorerTimer);
+  const gen = ++explorerGen;
+  if (!explorerVisible()) { el.explorerCard.classList.add("hidden"); return; }
+  const fen = currentFen();
+  const band = RATING_BANDS.find((b) => b.id === state.explorerBand) || RATING_BANDS[1];
+  const key = fen + "|" + band.id;
+  if (explorerCache.has(key)) { renderExplorer(explorerCache.get(key), fen); return; }
+  // Debounce: arrowing quickly through a game must not fire a request per ply.
+  explorerTimer = setTimeout(async () => {
+    if (gen !== explorerGen) return;
+    el.explorerCard.classList.remove("hidden");
+    el.explorerBody.innerHTML = '<div class="exloading">Looking it up...</div>';
+    el.explorerNote.textContent = "";
+    try {
+      const data = await lookupPosition(fen, { ratings: band.ratings });
+      explorerCache.set(key, data);
+      if (gen === explorerGen) renderExplorer(data, fen);
+    } catch (e) {
+      if (gen === explorerGen) el.explorerCard.classList.add("hidden");   // a bonus, so it just leaves
+    }
+  }, 260);
+}
+
+const pct = (x) => Math.round(x * 100);
+const fmtCount = (n) => (n >= 10000 ? Math.round(n / 1000) + "k" : n >= 1000 ? (n / 1000).toFixed(1) + "k" : String(n));
+
+function renderExplorer(data, fen) {
+  el.explorerCard.classList.remove("hidden");
+  if (data.kind === "tablebase") renderTablebase(data, fen);
+  else renderOpeningExplorer(data, fen);
+  el.explorerBody.querySelectorAll(".exrow").forEach((btn) =>
+    (btn.onclick = () => playLine(fen, [btn.dataset.uci])));   // click a move = play it on the board
+}
+
+function renderOpeningExplorer(data, fen) {
+  el.explorerTitle.textContent = "Opening explorer";
+  el.explorerRating.style.visibility = "visible";
+  if (!data.total || !data.moves.length) {
+    el.explorerBody.innerHTML = "";
+    el.explorerNote.textContent = "No games at this position in that rating band.";
+    return;
+  }
+  el.explorerBody.innerHTML = data.moves.slice(0, 8).map((m) =>
+    '<button class="exrow" data-uci="' + m.uci + '">' +
+      '<span class="exsan">' + esc(m.san) + "</span>" +
+      '<span class="exshare">' + pct(m.share) + "%</span>" +
+      '<span class="wdl"><i class="w" style="width:' + pct(m.white) + '%"></i>' +
+        '<i class="d" style="width:' + pct(m.draws) + '%"></i>' +
+        '<i class="b" style="width:' + pct(m.black) + '%"></i></span>' +
+      '<span class="excount">' + fmtCount(m.total) + "</span></button>").join("");
+  const op = data.opening ? esc(data.opening.name) + " · " : "";
+  el.explorerNote.textContent = op + "bars are white / draw / black results; % is how often the move is played here.";
+}
+
+const TB_LABEL = { win: "Winning", loss: "Losing", draw: "Drawn",
+  "cursed-win": "Winning (50-move)", "blessed-loss": "Losing (50-move)",
+  "maybe-win": "Winning", "maybe-loss": "Losing", unknown: "Unknown" };
+
+function renderTablebase(data, fen) {
+  el.explorerTitle.textContent = "Endgame tablebase";
+  el.explorerRating.style.visibility = "hidden";   // rating is irrelevant to perfect play
+  const verdict = data.checkmate ? "Checkmate" : data.stalemate ? "Stalemate"
+    : (TB_LABEL[data.category] || "Unknown");
+  const dtz = (data.dtz != null && !data.checkmate && !data.stalemate)
+    ? ' <span class="dim">· ' + Math.abs(data.dtz) + " to zeroing</span>" : "";
+  const rows = data.moves.map((m) =>
+    '<button class="exrow tb" data-uci="' + m.uci + '">' +
+      '<span class="exsan">' + esc(m.san) + "</span>" +
+      '<span class="tbres ' + (m.result || "") + '">' + (TB_LABEL[m.result] || m.result || "") + "</span>" +
+      (m.dtz != null ? '<span class="excount">' + Math.abs(m.dtz) + "</span>" : "") +
+    "</button>").join("");
+  el.explorerBody.innerHTML =
+    '<div class="tbverdict ' + (data.category || "") + '">' + verdict + dtz + "</div>" + rows;
+  el.explorerNote.textContent = "Perfect play, from Lichess's 7-piece tablebase. Distance is to the next pawn move or capture, not to mate.";
+}
+
+function initExplorerUi() {
+  el.explorerRating.innerHTML = RATING_BANDS.map((b) =>
+    '<option value="' + b.id + '">' + b.label + "</option>").join("");
+  el.explorerRating.value = state.explorerBand;
+  el.explorerRating.onchange = () => {
+    state.explorerBand = el.explorerRating.value;
+    try { localStorage.setItem("ca_explorer_band", state.explorerBand); } catch (e) { /* private mode */ }
+    refreshExplorer();
+  };
+}
+
+// ---------- visual position editor / confirm-board (fed by js/boardscan.js) ----------
+// The always-correct half of screenshot import: whatever the scan guesses, you land
+// here to fix any square before analysing. Useful on its own too — set up any position
+// by hand, which pasting a FEN string never made pleasant.
+const EDIT_PIECES = ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"];
+function fenToGrid(fen) {
+  return fen.split(" ")[0].split("/").map((fr) => {
+    const a = [];
+    for (const ch of fr) { if (/\d/.test(ch)) for (let i = 0; i < +ch; i++) a.push(null); else a.push(ch); }
+    return a;
+  });
+}
+const emptyGrid = () => Array.from({ length: 8 }, () => Array(8).fill(null));
+
+function openEditor(grid, note) {
+  state.editor = { grid: grid.map((r) => r.slice()), stm: "w", flip: false, brush: "P" };
+  el.editNote.textContent = note ||
+    "Pick a piece, then click squares to place it. Choose ⌫ to erase. Set who is to move, then analyze.";
+  el.edErr.classList.add("hidden");
+  el.editorCard.classList.remove("hidden");
+  renderPalette();
+  renderEditor();
+  el.editorCard.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+function closeEditor() { state.editor = null; el.editorCard.classList.add("hidden"); }
+
+function renderPalette() {
+  const ed = state.editor;
+  const mk = (code) => {
+    const b = document.createElement("button");
+    b.className = "palp" + (ed.brush === code ? " on" : "");
+    b.dataset.code = code;
+    if (code === "") { b.classList.add("eraser"); b.textContent = "⌫"; b.title = "Erase"; }
+    else {
+      const pc = document.createElement("div");
+      pc.className = "pc";
+      pc.style.backgroundImage = "url('vendor/pieces/cburnett/" +
+        (code === code.toUpperCase() ? "w" : "b") + code.toUpperCase() + ".svg')";
+      b.appendChild(pc);
+    }
+    b.onclick = () => { state.editor.brush = code; renderPalette(); };
+    return b;
+  };
+  el.palette.innerHTML = "";
+  for (const c of EDIT_PIECES) el.palette.appendChild(mk(c));
+  el.palette.appendChild(mk(""));   // eraser
+}
+function renderEditor() {
+  const ed = state.editor;
+  renderBoard(el.editorBoard, gridToFen(ed.grid, ed.stm), { flip: ed.flip, onSquareClick: stampSquare });
+  el.edWhite.classList.toggle("on", ed.stm === "w");
+  el.edBlack.classList.toggle("on", ed.stm === "b");
+}
+function stampSquare(name) {
+  const ed = state.editor;
+  const c = name.charCodeAt(0) - 97, r = 8 - +name[1];
+  ed.grid[r][c] = ed.brush === "" ? null : ed.brush;
+  el.edErr.classList.add("hidden");
+  renderEditor();
+}
+function analyzeEditor() {
+  const ed = state.editor;
+  const fen = gridToFen(ed.grid, ed.stm);
+  try { new Chess(fen); }
+  catch (e) {
+    const msg = /king/i.test(e.message || "") ? "each side needs exactly one king."
+      : (e.message || "check the pieces.").replace(/^.*FEN:\s*/i, "");
+    el.edErr.textContent = "That position isn't legal — " + msg;
+    el.edErr.classList.remove("hidden");
+    return;
+  }
+  const flip = ed.flip;
+  el.fenInput.value = fen;
+  closeEditor();
+  loadGame({ headers: { White: "White", Black: "Black" }, moves: [], startFen: fen });
+  state.flip = flip;
+  drawBoard();
+}
+
+// Read a chosen / pasted image, run the recognizer, and open the confirm-board on its
+// guess. Every failure still lands on the editor, so the feature never dead-ends.
+async function handleScanFile(file) {
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => {
+      const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = url;
+    });
+    const scan = await scanBoard(img);
+    if (!scan.plausible) {
+      // A garbage read (uncropped screenshot, a piece set we don't have): don't prefill
+      // 64 wrong squares — start empty and say plainly what a readable image looks like.
+      openEditor(emptyGrid(),
+        "Couldn't read that image. It needs to be cropped to JUST the 8×8 board — no app window, coordinates ring, or borders. Try a tighter crop, or build the position by hand below.");
+      return;
+    }
+    openEditor(scan.grid,
+      "Read " + scan.occupied + " pieces. Fix any square it got wrong, set who's to move, then analyze.");
+  } catch (e) {
+    openEditor(emptyGrid(), "Couldn't read that image. Set the position up by hand, then analyze.");
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function restartLive() {
+  state.magnusArrow = null;
+  clearTimeout(liveTimer);
+  // The human-move panel follows the same board position, but not the engine on/off
+  // toggle — someone who muted the engine may still want the opening stats — so it
+  // refreshes here, before the live-engine guard below.
+  refreshExplorer();
+  // botActive: no engine commentary during a competitive game.
+  if (!state.booted || !state.live || state.reviewing || document.hidden || botActive()) return;
+  const gen = ++liveGen;
+  liveTimer = setTimeout(async () => {
+    if (gen !== liveGen || state.reviewing || !state.live || document.hidden) return;
+    const fen = currentFen();
+    await state.engine.stopLive();          // fully settle the previous search
+    if (gen !== liveGen || state.reviewing) return; // superseded / review started while stopping
+    await state.engine.live(fen, {
+      multipv: state.liveLines,
+      depth: LIVE_DEPTH,
+      onUpdate: (lines) => { if (gen === liveGen) renderLive(fen, lines); },
+    });
+  }, 90);
+}
+
+// A tab you are not looking at must not analyse. Even a depth-capped search restarts
+// on every navigation, and a background tab left open on a game was the other half of
+// the "laptop is hot" complaint. Picks straight back up when you return.
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    clearTimeout(liveTimer); liveGen++;     // cancel anything pending
+    if (state.engine) state.engine.stopLive();
+  } else {
+    restartLive();
+  }
+});
+function renderLive(fen, lines) {
+  if (!lines.length) return;
+  const top = lines[0];
+
+  const bestMove = top.move || (Array.isArray(top.pv) ? top.pv[0] : null);
+  state.magnusArrow =
+    bestMove && /^[a-h][1-8][a-h][1-8]/.test(bestMove)
+      ? { from: bestMove.slice(0, 2), to: bestMove.slice(2, 4) }
+      : null;
+  refreshMagnusArrowOnly();
+  el.liveDepth.textContent = "depth " + top.depth + (top.seldepth ? "/" + top.seldepth : "");
+  el.liveEval.textContent = fmtEval(top.cp, top.mate);
+  el.liveEval.style.color = wpFromNode(top.cp, top.mate) >= 50 ? "var(--ink)" : "var(--muted)";
+  // fill eval bar live only when not showing reviewed eval
+  if (!(state.reviewed && state.ply > 0 && !state.explore)) updateEvalBar(top.cp, top.mate);
+  el.liveLinesBox.innerHTML = "";
+  for (const ln of lines) {
+    const sans = pvToSan(fen, ln.pv);
+    const div = document.createElement("div");
+    div.className = "liveline";
+    div.title = "Play the next move of this line";
+    div.innerHTML =
+      '<span class="lev">' + fmtEval(ln.cp, ln.mate) + "</span>" +
+      '<span class="lpv">' + formatPvSan(fen, sans) + "</span>";
+    const pv = ln.pv.slice();
+    div.addEventListener("click", () => playLine(fen, pv));
+    el.liveLinesBox.appendChild(div);
+  }
+}
+
+// ---------- review ----------
+async function runReview() {
+  if (!state.moves.length || !state.booted || state.reviewing || botActive()) return;
+
+  const reviewStartFen = state.startFen;
+  const reviewMoves = state.moves.map((m) => ({ ...m }));
+  const reviewDepth = state.reviewDepth;
+  const reviewEngine = state.engine.name;
+  const key = reviewKey({
+    startFen: reviewStartFen,
+    moves: reviewMoves,
+    depth: reviewDepth,
+    engine: reviewEngine,
+  });
+
+  const isCurrentGame = () =>
+    state.startFen === reviewStartFen &&
+    state.reviewDepth === reviewDepth &&
+    state.engine.name === reviewEngine &&
+    state.moves.length === reviewMoves.length &&
+    state.moves.every((m, i) =>
+      (m.uci || m.san) === (reviewMoves[i].uci || reviewMoves[i].san)
+    );
+
+  // Cache failure must not prevent a fresh review.
+  try {
+    const cached = await getCached(key);
+    if (cached) {
+      if (isCurrentGame()) applyReview(cached, true);
+      return;
+    }
+  } catch (error) {
+    console.warn("ChessMate review cache read failed; analysing normally:", error);
+  }
+
+  state.reviewing = true;
+  clearTimeout(liveTimer);
+  liveGen++;
+
+  const cancel = { cancelled: false };
+  state.cancel = cancel;
+
+  el.reviewBtn.textContent = "Cancel";
+  el.reviewBtn.classList.add("cancel");
+  el.progress.classList.remove("hidden");
+  el.progressBar.style.transform = "scaleX(0)";
+  el.progressTxt.textContent = "Preparing engine...";
+
+  const extras = [];
+  let res = null;
+  let failure = null;
+
+  try {
+    await state.engine.stopLive();
+
+    for (let i = 1; i < poolSize(); i++) {
+      extras.push(new Engine(ENGINE_URL()));
+    }
+
+    await Promise.all(extras.map((engine) =>
+      engine.boot().catch((error) => {
+        console.warn("An extra review engine failed to boot:", error);
+        return null;
+      })
+    ));
+
+    const pool = [state.engine, ...extras.filter((engine) => engine.booted)];
+    const total = reviewMoves.length + 1;
+
+    res = await reviewGame(pool, reviewMoves, reviewStartFen, {
+      depth: reviewDepth,
+      signal: cancel,
+      onProgress: (done) => {
+        const pct = Math.max(0, Math.min(100, Math.round(done / total * 100)));
+        el.progressBar.style.transform = "scaleX(" + pct / 100 + ")";
+        el.progressTxt.textContent =
+          "Analyzing " + done + " / " + total +
+          " positions (depth " + reviewDepth +
+          (pool.length > 1 ? ", " + pool.length + " engines" : "") + ")";
+      },
+    });
+
+    if (cancel.cancelled) res = null;
+
+    if (res) {
+      // A cache write is optional; a storage failure must not discard valid analysis.
+      try {
+        await putCached(key, res);
+      } catch (error) {
+        console.warn("ChessMate review cache write failed:", error);
+      }
+
+      // Never apply a result to a different game loaded while analysis was running.
+      if (isCurrentGame()) {
+        applyReview(res, false);
+      } else {
+        console.warn("Discarded stale review result because the open game changed.");
+      }
+    }
+  } catch (error) {
+    failure = error;
+    console.error("ChessMate game review failed:", error);
+  } finally {
+    // Tear down every temporary engine even when boot/search/rendering fails.
+    for (const engine of extras) {
+      try { engine.quit(); }
+      catch (error) { console.warn("Could not close a review engine:", error); }
+    }
+
+    // Recover the persistent engine after a failed or interrupted search.
+    try { await state.engine.stopLive(); }
+    catch (error) { console.warn("Could not stop the engine cleanly:", error); }
+
+    state.reviewing = false;
+    el.reviewBtn.textContent = "Analyze game";
+    el.reviewBtn.classList.remove("cancel");
+    el.progress.classList.add("hidden");
+    el.progressBar.style.transform = "scaleX(0)";
+
+    restartLive();
+  }
+
+  if (failure && !cancel.cancelled) {
+    flashChip("Review failed — check the browser console");
+  }
+}
+
+function applyReview(res, fromCache) {
+  console.log("[ChessMate review diagnostic]", {
+  fromCache,
+  accWhite: res.accWhite,
+  accBlack: res.accBlack,
+  counts: res.counts,
+  moveCount: res.moves.length
+});
+  state.review = res;
+  state.moves = res.moves;
+  state.reviewed = true;
+  window.__moves = res.moves;        // test hook: lets the suite read classifications + motifs
+  window.__fromCache = fromCache;    // test hook: did this review come back without the engine?
+  el.cardBtn.classList.remove("hidden");   // there is a report to share now
+  if (canCopyImages()) el.cardCopyBtn.classList.remove("hidden");
+  renderSummary();
+  renderMoveList();
+  renderReviewHeader();
+  goto(state.ply);
+  renderGameCoachCore();
+}
+
+// ---------- shareable report card ----------
+// A PNG of how the game went, for posting. Drawn rather than screenshotted: see js/card.js.
+async function buildCard() {
+  const canvas = document.createElement("canvas");
+  drawCard(canvas, { headers: state.headers, moves: state.moves, review: state.review });
+  window.__card = { w: canvas.width, h: canvas.height, url: canvas.toDataURL("image/png") };  // test hook
+  return new Promise((res) => canvas.toBlob(res, "image/png"));
+}
+
+async function saveCard() {
+  const blob = await buildCard();
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = cardName(state.headers);
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  chip(el.cardBtn, "ÃƒÂ¢Ã‚Â¬Ã¢â‚¬Â¡ Saved ✓", "ÃƒÂ¢Ã‚Â¬Ã¢â‚¬Â¡ Save image");
+}
+
+// Straight to the clipboard, so the card can be pasted into a chat without ever
+// becoming a file. The write MUST happen in the click's own task: browsers only honour
+// a clipboard write while the user gesture is still live, so awaiting the blob first and
+// writing after would be rejected on Safari. Hence the Promise is handed to
+// ClipboardItem, which is allowed to resolve later.
+async function copyCard() {
+  if (!canCopyImages()) return;
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": buildCard() })]);
+    chip(el.cardCopyBtn, "📋 Copied ✓", "📋 Copy image");
+  } catch (e) {
+    // Some browsers reject a Promise payload; retry with a resolved blob.
+    try {
+      const blob = await buildCard();
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      chip(el.cardCopyBtn, "📋 Copied ✓", "📋 Copy image");
+    } catch (e2) {
+      chip(el.cardCopyBtn, "📋 Blocked", "📋 Copy image");
+    }
+  }
+}
+
+// Firefox only grew ClipboardItem recently, and it needs a secure context. Rather than
+// offer a button that silently fails, don't offer it.
+const canCopyImages = () =>
+  typeof ClipboardItem !== "undefined" && !!(navigator.clipboard && navigator.clipboard.write);
+
+// Briefly confirm on a button, then put its label back.
+let chipTimer2 = null;
+function chip(btn, on, off) {
+  btn.textContent = on;
+  clearTimeout(chipTimer2);
+  chipTimer2 = setTimeout(() => { btn.textContent = off; }, 1800);
+}
+
+// ---------- engine boot ----------
+const ENGINE_URL = () => new URL("../vendor/magnus/magnus-18-lite-single.js", import.meta.url);
+
+// How many engines to review with. A review is ~100 INDEPENDENT positions, so it scales
+// across separate single-threaded engines (measured 3.5x on six; see docs/NOTES.md — and
+// note this is the OPPOSITE of Threads>1 inside one engine, which measured 5-6x SLOWER).
+//
+// The pool is built for a review and torn down after it. Each engine is its own WASM
+// instance holding its own hash, so keeping six alive would cost hundreds of MB to sit
+// idle — for a machine that is not reviewing anything. One engine stays, for the live
+// panel; the rest exist only while the progress bar is on screen.
+function poolSize() {
+  const cores = navigator.hardwareConcurrency || 2;
+  const lowMem = navigator.deviceMemory && navigator.deviceMemory <= 4;
+  return Math.max(1, Math.min(lowMem ? 2 : 6, cores - 1));
+}
+
+async function boot() {
+  state.engine = new Engine(ENGINE_URL());
+  el.engineStatus.textContent = "loading engine (~7 MB)...";
+  await state.engine.boot();
+  state.booted = true;
+  el.engineName.textContent = state.engine.name || "Magnus Engine";
+  el.engineStatus.textContent = "ready";
+  el.engineStatus.classList.add("ok");
+  el.reviewBtn.disabled = !state.moves.length;
+  renderModeUi();
+  restartLive();
+}
+
+// ---------- wire up UI ----------
+function bind() {
+  $("bStart").onclick = () => { state.explore = null; el.exploreBar.classList.add("hidden"); goto(0); };
+  $("bPrev").onclick = () => { state.explore = null; el.exploreBar.classList.add("hidden"); goto(state.ply - 1); };
+  $("bNext").onclick = () => { state.explore = null; el.exploreBar.classList.add("hidden"); goto(state.ply + 1); };
+  $("bEnd").onclick = () => { state.explore = null; el.exploreBar.classList.add("hidden"); goto(state.moves.length); };
+  $("bFlip").onclick = () => { state.flip = !state.flip; drawBoard(); };
+  // Right-clicking the board draws arrows instead of opening the context menu.
+  el.board.addEventListener("contextmenu", (e) => e.preventDefault());
+  $("returnGame").onclick = returnToGame;
+  el.explainPrev.onclick = () => explainStep(-1);
+  el.explainNext.onclick = () => explainStep(1);
+  el.explainDone.onclick = exitExplain;
+
+  el.reviewBtn.onclick = () => { state.reviewing ? (state.cancel.cancelled = true) : runReview(); };
+
+  el.reviewRetryBtn.onclick = () => {
+    if (!state.moves.length || state.reviewing) return;
+
+    state.review = null;
+    state.reviewed = false;
+    el.reviewHeaderCard.classList.add("hidden");
+  const playerCompareCard = document.getElementById('playerCompareCard');
+  if (playerCompareCard) playerCompareCard.classList.add('hidden');
+
+    runReview();
+  };
+
+  el.reviewCloseBtn.onclick = closeGameReview;
+
+  el.cardBtn.onclick = saveCard;
+  el.cardCopyBtn.onclick = copyCard;
+
+  // ---- modes ----
+  document.querySelectorAll(".modetab").forEach((b) => (b.onclick = () => setMode(b.dataset.mode)));
+  const pickSide = (c) => {
+    state.botPick = c;
+    el.pickWhite.classList.toggle("on", c === "w");
+    el.pickBlack.classList.toggle("on", c === "b");
+  };
+  el.pickWhite.onclick = () => pickSide("w");
+  el.pickBlack.onclick = () => pickSide("b");
+  BOT_LEVELS.forEach((l, i) => {
+    const o = document.createElement("option");
+    o.value = i;
+    o.textContent = l.label;
+    el.botElo.appendChild(o);
+  });
+  el.botElo.value = "4";   // ≈1200 — a humble default beats an insulting one
+  el.botStart.onclick = startBot;
+  el.botRematch.onclick = () => { if (state.mode === "bot") startBot(); };
+  el.botResign.onclick = () => {
+    if (!botActive()) return;
+    endBotGame(state.bot.color === "w" ? "0-1" : "1-0", "You resigned");
+  };
+  el.soloReset.onclick = () => loadGame({ headers: {}, moves: [], startFen: DEFAULT_FEN });
+  initExplorerUi();
+
+  // ----- screenshot scan + position editor -----
+  el.scanFile.onchange = (e) => { handleScanFile(e.target.files[0]); e.target.value = ""; };
+  el.scanBtn.onclick = () => openEditor(emptyGrid(),
+    "Build a position: pick a piece and click squares. Choose ⌫ to erase. Set who's to move, then analyze.");
+  el.edWhite.onclick = () => { if (state.editor) { state.editor.stm = "w"; renderEditor(); } };
+  el.edBlack.onclick = () => { if (state.editor) { state.editor.stm = "b"; renderEditor(); } };
+  el.edFlip.onclick = () => { if (state.editor) { state.editor.flip = !state.editor.flip; renderEditor(); } };
+  el.edClear.onclick = () => { if (state.editor) { state.editor.grid = emptyGrid(); renderEditor(); } };
+  el.edStart.onclick = () => { if (state.editor) { state.editor.grid = fenToGrid(DEFAULT_FEN); renderEditor(); } };
+  el.edAnalyze.onclick = analyzeEditor;
+  el.edCancel.onclick = closeEditor;
+  // Paste an image straight onto the page (ÃƒÂ¢Ã…’Ã‹Å“V a screenshot) to scan it. Only image
+  // items are intercepted, so pasting a PGN into its box still works normally.
+  window.addEventListener("paste", (e) => {
+    const items = (e.clipboardData && e.clipboardData.items) || [];
+    for (const it of items) {
+      if (it.type && it.type.startsWith("image/")) { handleScanFile(it.getAsFile()); e.preventDefault(); break; }
+    }
+  });
+
+  $("loadPgn").onclick = () => {
+    const txt = el.pgnInput.value.trim();
+    if (!txt) return;
+    // A link dropped in the PGN box should work too, rather than fail to parse.
+    if (looksLikeUrl(txt)) { el.userInput.value = txt; openGameFromLink(txt); return; }
+    try { loadGame(parseGame(txt)); }
+    catch (e) { alert("Could not parse PGN:\n" + e.message); }
+  };
+    const loadFenButton = $("loadFen");
+  if (loadFenButton && el.fenInput) {
+    loadFenButton.onclick = () => {
+      const fen = el.fenInput.value.trim();
+      if (!fen) return;
+      try {
+        new Chess(fen);
+        loadGame({ headers: { White: "Position", Black: "analysis" }, moves: [], startFen: fen });
+      } catch (e) { alert("Invalid FEN:\n" + e.message); }
+    };
+  };
+  $("loadSample").onclick = () => { el.pgnInput.value = SAMPLE_PGN; loadGame(parseGame(SAMPLE_PGN)); };
+
+  el.impToggle.onclick = () => {
+    setImportOpen(true);
+    el.userInput.focus({ preventScroll: true });
+    document.querySelector(".import").scrollIntoView({ block: "nearest", behavior: "smooth" });
+  };
+
+  el.siteSel.value = state.acct.site;
+  el.userInput.value = state.acct.user;
+  el.loadUser.onclick = loadFromInput;
+  el.userInput.addEventListener("keydown", (e) => { if (e.key === "Enter") loadFromInput(); });
+  el.siteSel.onchange = () => {
+    // The listed games belong to the previous site — drop them.
+    state.acct.site = el.siteSel.value;
+    state.acct.games = [];
+    state.acct.activeId = null;
+    renderGameList();
+    setAcctMsg("", false);
+  };  const pgnFileInput = $("pgnFile");
+  if (pgnFileInput) {
+    pgnFileInput.onchange = (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        el.pgnInput.value = r.result;
+        try { loadGame(parseGame(r.result)); }
+        catch (err) { alert(err.message); }
+      };
+      r.readAsText(f);
+    };
+  }
+
+  if (el.depthSel) el.depthSel.onchange = () => { state.reviewDepth = +el.depthSel.value; };
+  if (el.linesSel) el.linesSel.onchange = () => { state.liveLines = +el.linesSel.value; restartLive(); };
+  el.liveToggle.onclick = () => {
+    state.live = !state.live;
+    el.liveToggle.classList.toggle("on", state.live);
+    el.liveToggle.textContent = state.live ? "Engine: on" : "Engine: off";
+    el.live.classList.toggle("off", !state.live);
+    if (state.live) {
+      restartLive();
+    } else {
+      state.magnusArrow = null;
+      state.engine && state.engine.stopLive();
+      drawBoard();
+    }
+  };
+  const seekFromGraph = (canvas) => (e) => {
+    const r = canvas.getBoundingClientRect();
+    state.explore = null; el.exploreBar.classList.add("hidden");
+    goto(Math.round(((e.clientX - r.left) / r.width) * state.moves.length));
+  };
+  el.evalGraph.addEventListener("click", seekFromGraph(el.evalGraph));
+  el.timeGraph.addEventListener("click", seekFromGraph(el.timeGraph));
+  window.addEventListener("resize", () => { drawEvalGraph(); drawTimeGraph(); });
+
+  el.soundToggle.classList.toggle("on", state.sound);
+  el.soundToggle.onclick = () => {
+    state.sound = !state.sound;
+    el.soundToggle.classList.toggle("on", state.sound);
+    try { localStorage.setItem("ca_sound", state.sound ? "1" : "0"); } catch (e) { /* ignore */ }
+    if (state.sound) playMoveSound({ san: "e4" }); // preview the sound when enabling
+  };
+  el.shareBtn.onclick = copyShareLink;
+  el.shareBtn2.onclick = copyShareLink;
+  // Pasting a share link into an already-open tab should load that game.
+  window.addEventListener("hashchange", () => { loadFromHash(); });
+
+  $("themeToggle").onclick = () => {
+    const cur = document.documentElement.getAttribute("data-theme");
+    const next = cur === "dark" ? "light" : cur === "light" ? "dark"
+      : (matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "dark");
+    document.documentElement.setAttribute("data-theme", next);
+  };
+
+  document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
+    // While explaining, the arrows drive the walk-through, not the game.
+    if (state.explain) {
+      if (e.key === "ArrowLeft") { explainStep(-1); e.preventDefault(); }
+      else if (e.key === "ArrowRight") { explainStep(1); e.preventDefault(); }
+      else if (e.key === "Escape" || e.key === "Enter") { exitExplain(); e.preventDefault(); }
+      return;
+    }
+    if (e.key === "ArrowLeft") { $("bPrev").click(); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { $("bNext").click(); e.preventDefault(); }
+    else if (e.key === "Home") { $("bStart").click(); e.preventDefault(); }
+    else if (e.key === "End") { $("bEnd").click(); e.preventDefault(); }
+    else if (e.key === "f") $("bFlip").click();
+  });
+}
+
+// build legend once
+function buildLegend() {
+  const box = $("legend");
+  for (const k of CLASS_ORDER) {
+    const it = document.createElement("div");
+    it.className = "legitem";
+    it.innerHTML = '<span class="g" style="background:var(' + CLASSES[k].v + ')">' + glyphSvg(k) +
+      "</span>" + CLASSES[k].label;
+    box.appendChild(it);
+  }
+}
+
+// ---------- init ----------
+bind();
+buildLegend();
+if (el.depthSel) el.depthSel.value = String(state.reviewDepth);
+if (el.linesSel) el.linesSel.value = String(state.liveLines);
+// A shared #g= / #z= / #pgn= / #fen= link loads that game; otherwise start empty.
+loadFromHash().then((loaded) => {
+  if (!loaded) loadGame({ headers: {}, moves: [], startFen: DEFAULT_FEN });
+});
+boot();
+
+
+
+
+
+
+
+
+
+
+
+
+
+

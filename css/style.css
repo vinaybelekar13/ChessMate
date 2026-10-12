@@ -1,0 +1,7926 @@
+/* ============ tokens ============ */
+:root{
+  --bg:#eceef1; --panel:#ffffff; --panel2:#f4f6f8; --ink:#1c2027; --muted:#697079; --line:#dde1e6;
+  --accent:#b3862c; --accent-ink:#7a5a15;
+  --sq-l:#ebecd0; --sq-d:#779556; --hl:#f4ea5a; --sel:#bacb46;
+  --cap-w:#a7adb5; --cap-b:#40454d;
+  --brilliant:#26c2a3; --great:#749bbf; --best:#81b64c; --excellent:#86bd5c; --good:#b0c48a;
+  --book:#a88865; --inacc:#f4bf3e; --mistake:#e6912c; --blunder:#fa412d;
+  --shadow:0 1px 2px rgba(20,24,32,.06),0 10px 30px rgba(20,24,32,.06);
+  --serif:Georgia,"Iowan Old Style","Times New Roman",serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0f1216; --panel:#171b21; --panel2:#1e232b; --ink:#e6e9ee; --muted:#98a1ad; --line:#2a303a;
+    --accent:#c8a24a; --accent-ink:#e8c96a;
+    --sq-l:#ebecd0; --sq-d:#779556; --hl:#eadf58; --sel:#b3c343;
+    --cap-w:#c4cad2; --cap-b:#70798a;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 14px 40px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="light"]{
+  --bg:#eceef1; --panel:#ffffff; --panel2:#f4f6f8; --ink:#1c2027; --muted:#697079; --line:#dde1e6;
+  --accent:#b3862c; --accent-ink:#7a5a15;
+  --sq-l:#ebecd0; --sq-d:#779556; --hl:#f4ea5a; --sel:#bacb46;
+  --cap-w:#a7adb5; --cap-b:#40454d;
+  --shadow:0 1px 2px rgba(20,24,32,.06),0 10px 30px rgba(20,24,32,.06);
+}
+:root[data-theme="dark"]{
+  --bg:#0f1216; --panel:#171b21; --panel2:#1e232b; --ink:#e6e9ee; --muted:#98a1ad; --line:#2a303a;
+  --accent:#c8a24a; --accent-ink:#e8c96a;
+  --sq-l:#ebecd0; --sq-d:#779556; --hl:#eadf58; --sel:#b3c343;
+  --cap-w:#c4cad2; --cap-b:#70798a;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 14px 40px rgba(0,0,0,.35);
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.5;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+h1,h2{margin:0}
+a{color:var(--accent-ink);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent) 40%,transparent)}
+a:hover{border-color:var(--accent)}
+.serif{font-family:var(--serif)}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.hidden{display:none !important}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 16px 40px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+
+/* ============ mode bar ============ */
+.modebar{display:flex;gap:4px;margin-bottom:16px;background:var(--panel);border:1px solid var(--line);
+  border-radius:12px;padding:4px;width:max-content;max-width:100%;box-shadow:var(--shadow)}
+.modetab{border:none;background:transparent;padding:8px 16px;border-radius:8px;font-weight:600;
+  font-size:13.5px;color:var(--muted)}
+.modetab:hover{color:var(--ink);border:none}
+.modetab.on{background:var(--accent);color:#fff}
+.modetab.on:hover{color:#fff}
+
+/* ============ play-the-engine setup ============ */
+.playsetup{padding:8px 16px 14px;margin-bottom:16px}
+.setuprow{display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap}
+.setupgrp .lab{margin-bottom:7px}
+.sidepick{display:flex;gap:6px}
+.pick.on{background:color-mix(in srgb,var(--accent) 18%,transparent);border-color:var(--accent);
+  color:var(--ink);font-weight:700}
+.setupnote{font-size:12px;color:var(--muted);line-height:1.6;margin:12px 0 0;max-width:64ch}
+
+/* the free-board / bot-game status bar under the board */
+.playbar{display:flex;align-items:center;gap:9px;margin-top:11px;padding:8px 11px;border-radius:10px;
+  background:var(--panel2);border:1px solid var(--line);flex-wrap:wrap}
+.play-txt{flex:1;min-width:0;font-size:13px}
+.play-txt b{font-weight:700}
+.playbar .mini{flex:none;font-weight:600}
+
+/* ============ top bar ============ */
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand .knight{font-size:32px;line-height:1;color:var(--accent)}
+.brand h1{font-size:20px;letter-spacing:.2px}
+.tagline{font-size:12px;color:var(--muted)}
+.topright{display:flex;align-items:center;gap:10px}
+.statuschip{font-size:12px;font-family:var(--mono);color:var(--muted);background:var(--panel2);height:30px;
+  display:inline-flex;align-items:center;border:1px solid var(--line);padding:0 12px;border-radius:20px}
+.statuschip.ok{color:var(--best);border-color:color-mix(in srgb,var(--best) 45%,var(--line))}
+.ghost{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--panel);
+  color:var(--ink);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;line-height:1;padding:0}
+.ghost:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ============ import ============ */
+.import{padding:16px;margin-bottom:16px}
+/* the folded-away state, once a game is loaded */
+.import:has(#impBar:not(.hidden)){padding:10px 14px}
+.impbar{display:flex;align-items:center;gap:12px}
+.impbar-name{flex:1;min-width:0;font-size:13.5px;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.impbar-name .dim{font-weight:400;color:var(--muted)}
+.import-grid{display:grid;grid-template-columns:1fr 250px;gap:18px}
+@media (max-width:680px){.import-grid{grid-template-columns:1fr}}
+.lab{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+textarea#pgnInput{width:100%;height:104px;resize:vertical;border:1px solid var(--line);border-radius:10px;
+  background:var(--panel2);color:var(--ink);padding:10px 12px;font-family:var(--mono);font-size:12.5px;line-height:1.55}
+#fenInput{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--ink);
+  padding:9px 12px;font-family:var(--mono);font-size:12.5px;margin-bottom:8px}
+textarea#pgnInput:focus,#fenInput:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.btnrow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.imp-side{display:flex;flex-direction:column}
+button,select,.filebtn{font-family:inherit;font-size:13px;cursor:pointer;border-radius:9px;
+  border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:8px 14px;transition:.14s}
+button:hover,.filebtn:hover{border-color:var(--accent);color:var(--accent)}
+button:disabled{opacity:.5;cursor:not-allowed}
+button:disabled:hover{border-color:var(--line);color:var(--ink)}
+.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.primary:hover{filter:brightness(1.06);color:#fff}
+.filebtn{display:inline-flex;align-items:center}
+select#depthSel{width:100%}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---- import from a Chess.com / Lichess account ---- */
+.acctrow{display:flex;gap:8px;flex-wrap:wrap}
+#siteSel{flex:none}
+#userInput{flex:1;min-width:150px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);
+  color:var(--ink);padding:8px 12px;font-family:inherit;font-size:13px}
+#userInput:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.accthint{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.6}
+.accthint .mono{font-size:11px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:4px;padding:1px 5px;white-space:nowrap}
+.acctmsg{font-size:12.5px;color:var(--muted);margin-top:9px}
+.acctmsg.err{color:var(--blunder)}
+.impdiv{display:flex;align-items:center;gap:12px;margin:16px 0;color:var(--muted);
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.impdiv::before,.impdiv::after{content:"";flex:1;height:1px;background:var(--line)}
+
+.gamelist{margin-top:10px;max-height:236px;overflow-y:auto;border:1px solid var(--line);
+  border-radius:10px;background:var(--panel2);padding:4px}
+.grow{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:center;
+  padding:7px 8px;border-radius:8px;cursor:pointer}
+.grow:hover{background:var(--panel)}
+.grow.on{background:color-mix(in srgb,var(--accent) 18%,transparent);outline:1px solid var(--accent)}
+.gres{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:11px;font-weight:800;color:#fff;flex:none}
+.gres.win{background:var(--best)}
+.gres.loss{background:var(--blunder)}
+.gres.draw{background:var(--muted)}
+.gmain{min-width:0}
+.gp{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gp .me{font-weight:700}
+.gp .vs,.gp .el{color:var(--muted);font-size:11.5px}
+.gop{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gmeta{text-align:right;font-family:var(--mono);font-size:11px;color:var(--muted);flex:none;line-height:1.45}
+.gmeta .tc{text-transform:capitalize}
+@media (max-width:520px){.gmeta{display:none}}
+
+/* ============ main grid ============ */
+/* The wider right column gives the moves room to breathe, and shrinks the board
+   just enough that board and move list fit on a laptop screen together. */
+.grid{display:grid;grid-template-columns:minmax(320px,1fr) 480px;gap:18px;align-items:start}
+/* Grid and flex items are min-width:auto by default, so they refuse to shrink
+   below their content and shove the whole page sideways on a phone. The cards
+   need it TOO: once the column wrappers dissolve (display:contents below), the
+   cards themselves become the grid items, and min-width:auto struck again â€”
+   a 484px board on a 390px phone. */
+.grid > *,.leftcol > *,.rightcol > *{min-width:0}
+.rightcol,.leftcol{display:flex;flex-direction:column;gap:16px;min-width:0}
+/* On one column, the left-column extras (graphs, legend) must not wedge themselves
+   between the board and the Analyze button / move list, so the wrappers dissolve
+   and the cards are ordered explicitly. */
+@media (max-width:900px){
+  .grid{grid-template-columns:1fr}
+  .leftcol,.rightcol{display:contents}
+  .boardcard{order:0}
+  .rightcol > *{order:1}
+  .leftcol .graphcard{order:2}
+  .leftcol .legendcard{order:3}
+}
+
+/* ============ board ============ */
+.boardcard{padding:16px}
+.ghead{margin-bottom:12px}
+.ghead h2{font-size:19px;letter-spacing:.2px;text-wrap:balance}
+.ghmeta{font-size:12px;color:var(--muted);margin-top:2px}
+.playerline{display:flex;align-items:center;gap:9px;padding:4px 2px;font-size:14px}
+.playerline.top{padding-bottom:8px}
+.playerline.bot{padding-top:8px}
+.playerline .chip{width:14px;height:14px;border-radius:4px;border:1px solid var(--line)}
+.playerline .chip.dark{background:#23272e}
+.playerline .chip.light{background:#f4f2ec}
+.playerline .nm{font-weight:600}
+.playerline .elo{color:var(--muted);font-size:12px}
+.captured{display:inline-flex;align-items:center;margin-left:7px;line-height:1;font-size:15px;letter-spacing:-2px}
+.cap{opacity:.95}
+.cap.w{color:var(--cap-w);text-shadow:0 0 1px rgba(0,0,0,.25)}
+.cap.b{color:var(--cap-b)}
+.captured .adv{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent-ink);margin-left:6px;letter-spacing:0}
+
+.boardrow{display:flex;gap:9px;min-width:0}
+.evalbar{width:22px;flex:none;border-radius:6px;overflow:hidden;background:#20242b;position:relative;border:1px solid var(--line)}
+.evalfill{position:absolute;left:0;right:0;bottom:0;top:0;background:#f2f0ea;transform:scaleY(.5);transform-origin:bottom;
+  transition:transform .4s cubic-bezier(.4,0,.2,1)}
+.evalnum{position:absolute;left:0;right:0;text-align:center;font-family:var(--mono);font-size:9.5px;font-weight:700;z-index:2}
+.evalnum.bot{bottom:2px;color:#3a3f47}
+.evalnum.top{top:2px;color:#c9cdd3}
+
+.board{flex:1;min-width:0;aspect-ratio:1;display:grid;
+  grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));
+  border-radius:8px;overflow:hidden;box-shadow:inset 0 0 0 1px var(--line);container-type:inline-size;position:relative;
+  touch-action:none;-webkit-user-select:none;user-select:none}
+.sq{position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.sq.l{background:var(--sq-l)}.sq.d{background:var(--sq-d)}
+.sq.hl::after{content:"";position:absolute;inset:0;background:var(--hl);opacity:.42;mix-blend-mode:multiply}
+/* a reviewed move tints its two squares in the move's class colour, so a brilliant
+   leaves a teal pair and a blunder a red pair, the way Chess.com does. */
+.sq.hl.clshl::after{background:var(--hl-col);opacity:.55;mix-blend-mode:normal}
+.sq.sel::before{content:"";position:absolute;inset:0;background:var(--sel);opacity:.5}
+/* a piece you can pick up right now */
+.sq.grabbable{cursor:grab}
+.sq.grabbable:active{cursor:grabbing}
+/* the square the dragged piece is currently over */
+.sq.over{box-shadow:inset 0 0 0 4px rgba(255,255,255,.65)}
+.pc{position:relative;z-index:1;width:100%;height:100%;pointer-events:none;
+  background-size:contain;background-position:center;background-repeat:no-repeat;
+  filter:drop-shadow(0 1.5px 1px rgba(0,0,0,.22));-webkit-user-drag:none}
+/* lifted out of the square and carried under the cursor */
+.pc.dragging{z-index:30;transition:none;will-change:transform;
+  filter:drop-shadow(0 6px 8px rgba(0,0,0,.42))}
+.target{position:absolute;width:26%;height:26%;border-radius:50%;background:rgba(20,24,32,.28);z-index:2}
+.target.cap{width:82%;height:82%;background:transparent;border:5px solid rgba(20,24,32,.28);border-radius:50%}
+.coord{position:absolute;font-family:var(--mono);font-weight:700;z-index:1;font-size:max(11px,2cqw);line-height:1}
+.coord.f{right:4px;bottom:2px}.coord.r{left:3px;top:2px}
+.sq.l .coord{color:var(--sq-d)}
+.sq.d .coord{color:var(--sq-l)}
+.badge{position:absolute;top:3px;right:3px;width:min(19px,5.4cqw);height:min(19px,5.4cqw);border-radius:50%;display:flex;
+  align-items:center;justify-content:center;font-family:var(--mono);font-size:min(10.5px,2.7cqw);font-weight:800;
+  color:#fff;z-index:4;box-shadow:0 1px 4px rgba(0,0,0,.45);border:1.5px solid var(--panel)}
+
+/* ---- classification marks, drawn not typed (js/glyphs.js) ----
+   Font glyphs (â˜… âœ“ â—‡ !!) each come from a different fallback font and sit at a
+   different place in the em box, so every badge looked slightly off. An SVG in a
+   flex-centred box is centred by construction, on every platform. */
+.clsglyph{display:block;width:74%;height:74%}
+.badge .clsglyph{width:82%;height:82%}
+.cglyph .clsglyph{width:62%;height:62%}
+.fl-glyph .clsglyph{width:min(38px,9.5cqw);height:min(38px,9.5cqw)}
+
+.arrows{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3;overflow:visible}
+
+/* ============ move-quality flourish (brilliant / great) ============ */
+/* Fires once when you step onto the move: the square floods with the class
+   colour, the glyph punches in, a label pops beside it, then it all fades to
+   reveal the resting class tint already painted underneath (.sq.hl.clshl). */
+.flourish{position:absolute;inset:0;z-index:6;pointer-events:none}
+.fl-fill{position:absolute;inset:0;background:var(--fl-col);animation:flFill 1.3s ease forwards}
+.fl-glyph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-weight:900;color:#fff;font-size:min(30px,7cqw);line-height:1;
+  text-shadow:0 1px 3px rgba(0,0,0,.4);animation:flPop 1.3s cubic-bezier(.22,1,.36,1) forwards}
+.fl-bubble{position:absolute;left:50%;top:-5px;transform:translate(-50%,-100%);
+  background:#fff;color:var(--fl-col);font-weight:800;font-size:min(15px,3.6cqw);line-height:1;
+  padding:5px 12px;border-radius:14px;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.3);
+  animation:flBubble 1.3s ease forwards}
+/* keep the label inside the board on edge squares by pointing it inward */
+.fl-bubble.right{left:6%;transform:translate(0,-100%)}
+.fl-bubble.left{left:auto;right:6%;transform:translate(0,-100%)}
+.fl-bubble.below{top:auto;bottom:-5px;transform:translate(-50%,100%)}
+.fl-bubble.below.right{transform:translate(0,100%)}
+.fl-bubble.below.left{transform:translate(0,100%)}
+@keyframes flFill{0%{opacity:0}15%{opacity:.82}70%{opacity:.82}100%{opacity:0}}
+@keyframes flPop{0%{opacity:0;transform:scale(.4)}18%{opacity:1;transform:scale(1.18)}
+  34%{transform:scale(1)}70%{opacity:1}100%{opacity:0}}
+@keyframes flBubble{0%{opacity:0;scale:.7}22%{opacity:1;scale:1}70%{opacity:1}100%{opacity:0}}
+.controls{display:flex;gap:7px;justify-content:center;margin-top:12px}
+.controls button{flex:1;max-width:66px;height:38px;font-size:15px}
+.explorebar{display:flex;align-items:center;gap:9px;margin-top:11px;padding:8px 10px;border-radius:10px;
+  background:var(--panel2);border:1px dashed color-mix(in srgb,var(--accent) 45%,var(--line))}
+.expl-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);flex:none}
+.expl-txt{font-size:12.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mini{padding:5px 10px;font-size:12px}
+/* The "Explain" walk-through bar. Lives inside the coach card, so it takes the card
+   background (--panel) rather than the panel2 the card itself is painted in. */
+.explainbar{display:flex;align-items:center;gap:8px;margin-top:10px;padding:7px 9px;border-radius:10px;
+  background:var(--panel);border:1px solid color-mix(in srgb,var(--best) 40%,var(--line))}
+.explain-txt{flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.explain-txt b{color:var(--ink)}
+.explain-txt .bulb{filter:saturate(1.2)}
+.explain-txt .evchip{margin-left:4px}
+.stepbtn{flex:none;width:34px;height:32px;font-size:17px;line-height:1;padding:0;border-radius:8px}
+.stepbtn:disabled{opacity:.35;cursor:default}
+.mini.done{flex:none;font-weight:600;background:var(--best);color:#fff;border-color:transparent}
+
+/* ============ coach card (under the board) ============ */
+/* Everything the app has to say about the move you are looking at: what it was, why,
+   what was better, and the walk-through of it. One card, so pressing "Explain"
+   changes things where you pressed it â€” this used to be split across two columns. */
+.coach{margin-top:11px;padding:11px 13px;border-radius:10px;background:var(--panel2);border:1px solid var(--line)}
+.readout{display:flex;align-items:center;gap:12px;min-height:44px}
+.cglyph{width:34px;height:34px;border-radius:8px;flex:none;display:flex;align-items:center;justify-content:center;
+  color:#fff;font-weight:800;font-family:var(--mono);font-size:15px;background:var(--muted)}
+.rmove{font-size:15px;font-weight:700}
+.rsub{font-size:12.5px;color:var(--muted)}
+.rsub b{color:var(--ink)}
+.assess{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.assess-note{font-size:13px;color:var(--muted);line-height:1.55}
+.assess-best{display:flex;align-items:center;gap:7px;font-size:13px;margin-top:9px;padding-top:9px;
+  border-top:1px solid var(--line)}
+.assess-best .cg{font-family:var(--mono);font-weight:800;font-size:14px}
+.assess-best .evchip{margin-left:auto}
+/* the whole row is the button that opens the walk-through */
+.assess-best.clickable{cursor:pointer;margin:9px -6px 0;padding-left:6px;padding-right:6px;border-radius:8px;
+  transition:background .12s}
+.assess-best.clickable:hover{background:var(--panel)}
+.preview-hint{color:var(--accent-ink);font-weight:700;font-size:12px}
+
+/* ============ share bar ============ */
+.sharebar{margin-top:11px;padding:10px 13px;border-radius:10px;background:var(--panel2);
+  border:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.sharetxt{flex:1;min-width:0;font-size:13px;line-height:1.4}
+.sharekind{display:block;font-size:11.5px;color:var(--muted)}
+.sharebar .mini{flex:none;font-weight:600}
+.sharenote{font-size:12px;font-weight:700;color:var(--best);flex:none}
+
+/* ============ time-per-move graph ============ */
+.timenote{font-size:12.5px;color:var(--muted);line-height:1.7;margin:12px 0 0}
+.timenote b{color:var(--ink)}
+.motifnote{font-size:12.5px;color:var(--muted);line-height:1.7;margin:12px 0 2px;
+  padding-top:12px;border-top:1px solid var(--line)}
+.motifnote b{color:var(--ink)}
+
+/* ============ review / summary ============ */
+.review{padding:15px}
+.rev-head{display:flex}
+.depthrow{display:flex;align-items:center;gap:10px;margin-top:11px}
+.depthrow .lab{margin-bottom:0;flex:none}
+.depthrow select{flex:1;min-width:0}
+.big{width:100%;padding:12px;font-size:15px;font-weight:700}
+.primary.cancel{background:var(--blunder);border-color:var(--blunder)}
+.progress{margin-top:12px}
+.pbar{height:8px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);overflow:hidden}
+.pfill{height:100%;width:100%;transform:scaleX(0);transform-origin:left;background:var(--accent);transition:transform .2s}
+.ptxt{font-size:12px;color:var(--muted);margin-top:6px;font-family:var(--mono)}
+.summary{padding:2px 15px 16px}
+.acc{display:flex;gap:12px;margin-bottom:14px}
+.ratingnote{font-size:11.5px;color:var(--muted);margin:-2px 0 14px;line-height:1.6}
+.ratingnote b{color:var(--ink)}
+.opening{font-size:12.5px;color:var(--accent-ink);font-weight:600;margin-top:5px}
+.ghost.on{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.accbox{flex:1;text-align:center;padding:10px 4px;border-radius:10px;background:var(--panel2);border:1px solid var(--line)}
+.accbox .who{font-size:12px;font-weight:600;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.accbox .n{font-size:25px;font-weight:700;font-family:var(--mono);line-height:1.05}
+.accbox .l{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-top:2px}
+.chead{display:flex;justify-content:flex-end;gap:9px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted);margin-bottom:5px}
+.chead span{width:16px;text-align:right}
+.counts{display:flex;flex-direction:column;gap:5px}
+.countrow{display:flex;align-items:center;gap:8px;font-size:13px}
+.countrow .g{width:18px;height:18px;border-radius:5px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:10px;font-weight:800;color:#fff;flex:none}
+.countrow .cl{flex:1;color:var(--muted)}
+.countrow .cw,.countrow .cb{width:16px;text-align:right;font-family:var(--mono);font-weight:700}
+.countrow .cb{color:var(--muted)}
+
+/* ============ live engine ============ */
+.live{padding:14px}
+.live.off{opacity:.55}
+.live-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.toggle{font-size:12px;padding:5px 12px;border-radius:20px}
+.toggle.on{background:color-mix(in srgb,var(--best) 20%,transparent);border-color:var(--best);color:var(--ink)}
+.live-meta{display:flex;align-items:baseline;gap:8px}
+.live-meta #liveEval{font-size:20px;font-weight:700}
+.dim{color:var(--muted);font-size:11px}
+.bestlink{cursor:pointer;color:var(--accent-ink);font-weight:700;border-bottom:1px dashed color-mix(in srgb,var(--accent) 55%,transparent)}
+.bestlink:hover{border-bottom-color:var(--accent)}
+.graphcard{padding:8px 14px 14px}   /* spacing comes from the column gap */
+.evalgraph{width:100%;height:100px;display:block;cursor:pointer;border-radius:8px;border:1px solid var(--line)}
+.evchip{font-family:var(--mono);font-size:11px;font-weight:700;background:var(--panel2);border:1px solid var(--line);
+  border-radius:5px;padding:2px 6px;min-width:48px;text-align:center;flex:none}
+.coach .evchip{background:var(--panel)}   /* the coach card is already panel2 */
+.livelines{display:flex;flex-direction:column;gap:3px;min-height:66px}
+.liveline{display:flex;gap:8px;font-family:var(--mono);font-size:12px;padding:3px 6px;border-radius:6px;cursor:pointer}
+.liveline:hover{background:var(--panel2)}
+.liveline .lev{color:var(--accent-ink);font-weight:700;min-width:44px;flex:none}
+.liveline .lpv{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.live-foot{margin-top:9px;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.tinysel{padding:2px 6px;font-size:11px}
+
+/* ============ accuracy by phase ============ */
+.phases{padding:2px 15px 14px}
+.phaserows{display:flex;flex-direction:column;gap:5px}
+.phaserow{display:flex;align-items:center;gap:8px;font-size:13px}
+.phaserow .pl{flex:1;color:var(--muted)}
+.phaserow .pv{width:74px;display:flex;align-items:baseline;justify-content:flex-end;gap:5px}
+.phaserow .pn{font-family:var(--mono);font-weight:700;font-size:14px}
+.phaserow .pn.dim{color:var(--muted);font-weight:400}
+.phaserow .pc{font-size:10px;color:var(--muted);font-family:var(--mono);min-width:16px;text-align:right}
+.phases .chead span{width:74px;text-align:right}
+.phasenote{font-size:11.5px;color:var(--muted);margin:12px 0 0;line-height:1.6}
+
+/* ============ move list ============ */
+.movescard{padding:6px 6px 10px}
+.sectlabel{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:12px 10px 8px}
+/* Tall enough to show a real chunk of the game without pushing the rest of the
+   column off screen. */
+.movelist{max-height:min(58vh,470px);overflow-y:auto}
+.mvempty-msg{padding:10px 12px;font-size:13px;color:var(--muted)}
+.mvrow{display:grid;grid-template-columns:36px minmax(0,1fr) minmax(0,1fr);align-items:stretch;
+  font-family:var(--mono);font-size:14px}
+.mvrow .no{color:var(--muted);display:flex;align-items:center;padding-left:8px;font-size:12.5px}
+.mv{display:flex;align-items:center;gap:6px;padding:6px 9px;border-radius:7px;cursor:pointer;margin:1px;min-width:0}
+.mv:hover{background:var(--panel2)}
+.mv.active{background:color-mix(in srgb,var(--accent) 22%,transparent);outline:1px solid var(--accent)}
+/* The move can shrink and ellipsis; the glyph and eval never shrink, so they
+   can't be overlapped by a long SAN in a narrow column. */
+.mv .san{font-weight:700;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mv .cg{flex:none;margin-left:auto;font-weight:800;font-size:12px}
+/* the marks worth celebrating get the weight they deserve, in the list too */
+.mv .cg.fat{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-weight:900;
+  font-size:13px;letter-spacing:-.04em;-webkit-text-stroke:.035em currentColor}
+.mv .ev{flex:none;color:var(--muted);font-size:11.5px;min-width:46px;text-align:right}
+.mv.empty{cursor:default}
+/* On a narrow column the eval numbers are the first thing to go â€” the move and
+   its classification matter more. */
+@media (max-width:420px){.mv .ev{display:none}}
+
+/* ============ accuracy strip (headline, kept beside the board) ============ */
+.accstrip{display:flex;gap:10px;margin-top:12px}
+.accstrip .a{flex:1;min-width:0;text-align:center;padding:8px 4px;border-radius:10px;
+  background:var(--panel2);border:1px solid var(--line)}
+.accstrip .a b{display:block;font-family:var(--mono);font-size:19px;font-weight:700;line-height:1.15}
+.accstrip .a span{display:block;font-size:11px;color:var(--muted);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* the rough game-rating estimate, under each accuracy */
+.accstrip .a .est{font-family:var(--mono);font-size:10.5px;color:var(--accent-ink);margin-top:3px}
+.accstrip .a .est .prov{font-size:9px;letter-spacing:.03em;text-transform:uppercase;opacity:.6}
+
+/* ============ opening explorer / endgame tablebase ============ */
+.explorer{padding:14px}
+.explorer-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
+.explorer-body{display:flex;flex-direction:column;gap:2px}
+.exloading{font-size:12px;color:var(--muted);padding:4px 2px}
+.exrow{display:grid;grid-template-columns:2.6em 2.3em 1fr 2.6em;align-items:center;gap:8px;
+  width:100%;background:none;border:0;padding:5px 6px;border-radius:7px;cursor:pointer;text-align:left;
+  color:var(--ink);font:inherit}
+.exrow:hover{background:var(--panel2)}
+.exrow.tb{grid-template-columns:2.6em 1fr 2.6em}
+.exsan{font-weight:600;font-family:var(--mono)}
+.exshare,.excount{font-size:11px;color:var(--muted);text-align:right;font-family:var(--mono)}
+.wdl{display:flex;height:14px;border-radius:3px;overflow:hidden;background:var(--line)}
+.wdl i{display:block;height:100%}
+.wdl .w{background:#e9e7df}
+.wdl .d{background:var(--muted);opacity:.5}
+.wdl .b{background:#3a3f47}
+.tbverdict{font-weight:700;font-size:14px;margin-bottom:6px}
+.tbverdict.win,.tbverdict.cursed-win,.tbres.win,.tbres.cursed-win{color:var(--best)}
+.tbverdict.loss,.tbverdict.blessed-loss,.tbres.loss,.tbres.blessed-loss{color:var(--blunder)}
+.tbverdict.draw,.tbres.draw{color:var(--muted)}
+.tbres{font-size:12px}
+.explorer-note{font-size:10.5px;color:var(--muted);margin-top:8px;line-height:1.4}
+
+/* ============ position editor / confirm-board + screenshot scan ============ */
+.scanrow{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.scanhint{font-size:10.5px;color:var(--muted);margin-top:6px;line-height:1.4}
+.editor{padding:16px}
+.editnote{font-size:12px;color:var(--muted);margin:2px 0 14px;line-height:1.45}
+.editmain{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+.editboardwrap{display:flex;width:min(360px,78vw);flex:0 0 auto}
+.editside{flex:1;min-width:210px;display:flex;flex-direction:column;gap:13px}
+.palette{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.palp{aspect-ratio:1;border:1px solid var(--line);border-radius:8px;background:var(--panel2);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;padding:3px}
+.palp:hover{border-color:var(--accent)}
+.palp.on{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
+.palp .pc{width:100%;height:100%;filter:drop-shadow(0 1px 1px rgba(0,0,0,.2))}
+.palp.eraser{font-size:18px;color:var(--muted)}
+.editrow{display:flex;align-items:center;gap:10px}
+.editbtns,.editactions{display:flex;gap:8px;flex-wrap:wrap}
+.editerr{color:var(--blunder);font-size:12px}
+
+/* ============ "what to work on" coach summary ============ */
+.advice{padding:14px}
+.coachbody .advp{font-size:12.5px;line-height:1.55;color:var(--ink);margin:0 0 10px}
+.coachbody .advp:last-child{margin-bottom:0}
+.coachbody .advp+.advp{padding-top:10px;border-top:1px solid var(--line)}
+
+/* ============ legend / footer ============ */
+.legendcard{padding:8px 16px 16px}
+.legend{display:flex;flex-wrap:wrap;gap:9px 16px;font-size:12.5px;color:var(--muted)}
+.legitem{display:flex;align-items:center;gap:6px}
+.legitem .g{width:18px;height:18px;border-radius:5px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:10px;font-weight:800;color:#fff}
+.note{font-size:12px;color:var(--muted);line-height:1.65;margin:14px 0 0;max-width:74ch}
+.note b{color:var(--ink)}
+.foot{text-align:center;font-size:12px;color:var(--muted);margin-top:22px}
+
+@media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+
+/* CHESSMATE HEADER LOGO FIX */
+
+.topbar .brand-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+}
+
+.topbar .site-logo {
+    width: 58px;
+    height: 58px;
+    min-width: 58px;
+    min-height: 58px;
+    max-width: 58px;
+    max-height: 58px;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+    border-radius: 10px;
+}
+
+.topbar .brand-title span {
+    display: block;
+}
+
+#soundToggle,
+#themeToggle,
+#shareBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    padding: 0;
+    font-size: 20px;
+    line-height: 1;
+}
+
+#soundToggle {
+    font-family: "Segoe UI Symbol", "Noto Sans Symbols", sans-serif;
+}
+
+#themeToggle {
+    font-family: "Segoe UI Symbol", "Noto Sans Symbols", sans-serif;
+}
+
+#shareBtn {
+    font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
+}
+
+/* Keep the logo square even on smaller screens */
+@media (max-width: 700px) {
+    .topbar .site-logo {
+        width: 50px;
+        height: 50px;
+        min-width: 50px;
+        min-height: 50px;
+        max-width: 50px;
+        max-height: 50px;
+    }
+}
+
+/* END CHESSMATE HEADER LOGO FIX */
+
+/* =========================================================
+   CHESSMATE â€” CALM / FOCUSED COLOR SYSTEM
+   ========================================================= */
+
+/* ---------- DARK MODE ---------- */
+
+:root,
+:root[data-theme="dark"] {
+    --bg: #0f1115;
+    --panel: #151922;
+    --panel-2: #191e27;
+    --panel-3: #1d232d;
+
+    --border: #28303a;
+    --border-soft: #222933;
+    --border-strong: #343d49;
+
+    --text: #e7e9ed;
+    --text-strong: #f2f3f5;
+    --muted: #9ba4b1;
+    --muted-2: #747e8b;
+
+    --accent: #c8a34e;
+    --accent-hover: #d2af5b;
+    --accent-soft: rgba(200, 163, 78, 0.14);
+
+    --success: #78a878;
+    --success-soft: rgba(120, 168, 120, 0.13);
+
+    --danger: #c77c78;
+    --danger-soft: rgba(199, 124, 120, 0.13);
+
+    --board-light: #e4e1d3;
+    --board-dark: #78955d;
+
+    --shadow: rgba(0, 0, 0, 0.22);
+}
+
+
+/* ---------- LIGHT MODE ---------- */
+
+:root[data-theme="light"] {
+    --bg: #f3f3f0;
+    --panel: #ffffff;
+    --panel-2: #f7f7f4;
+    --panel-3: #eeeeea;
+
+    --border: #d9d9d3;
+    --border-soft: #e5e5e0;
+    --border-strong: #c9c9c2;
+
+    --text: #25282d;
+    --text-strong: #17191c;
+    --muted: #697078;
+    --muted-2: #8a9096;
+
+    --accent: #aa8430;
+    --accent-hover: #987527;
+    --accent-soft: rgba(170, 132, 48, 0.11);
+
+    --success: #557f55;
+    --success-soft: rgba(85, 127, 85, 0.11);
+
+    --danger: #a85e5a;
+    --danger-soft: rgba(168, 94, 90, 0.10);
+
+    --board-light: #eeeadd;
+    --board-dark: #8ca56e;
+
+    --shadow: rgba(20, 22, 25, 0.08);
+}
+
+
+/* ---------- PAGE ---------- */
+
+html,
+body {
+    background: var(--bg);
+    color: var(--text);
+}
+
+body {
+    transition:
+        background-color 180ms ease,
+        color 180ms ease;
+}
+
+
+/* ---------- MAIN PANELS ---------- */
+
+.card,
+.panel,
+section,
+.importer,
+.engine-panel,
+.review-panel,
+.moves-panel,
+.summary-panel {
+    background: var(--panel);
+    border-color: var(--border);
+    box-shadow: 0 8px 28px var(--shadow);
+}
+
+
+/* ---------- HEADER ---------- */
+
+.topbar {
+    color: var(--text-strong);
+}
+
+.topbar .tagline,
+.tagline {
+    color: var(--muted);
+}
+
+
+/* ---------- TAB BAR ---------- */
+
+.modetabs,
+.tabs {
+    background: var(--panel);
+    border-color: var(--border);
+}
+
+.modetab {
+    color: var(--muted);
+}
+
+.modetab:hover {
+    color: var(--text);
+    background: var(--panel-2);
+}
+
+.modetab.on {
+    color: #fff;
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+
+/* ---------- BUTTONS ---------- */
+
+button,
+input,
+select,
+textarea {
+    font-family: inherit;
+}
+
+button {
+    color: var(--text);
+    border-color: var(--border);
+    background: var(--panel-2);
+}
+
+button:hover {
+    background: var(--panel-3);
+    border-color: var(--border-strong);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+
+/* Primary actions */
+
+button.primary,
+.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #17140d;
+    font-weight: 650;
+}
+
+button.primary:hover,
+.primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+
+/* Ghost controls */
+
+button.ghost {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--muted);
+}
+
+button.ghost:hover {
+    background: var(--panel-2);
+    color: var(--text);
+    border-color: var(--border-strong);
+}
+
+button.ghost.on {
+    color: var(--accent);
+    border-color: rgba(200, 163, 78, 0.45);
+    background: var(--accent-soft);
+}
+
+
+/* ---------- INPUTS ---------- */
+
+input,
+select,
+textarea {
+    background: var(--panel-2);
+    color: var(--text);
+    border-color: var(--border);
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--muted-2);
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+    border-color: var(--border-strong);
+}
+
+
+/* ---------- TEXT HIERARCHY ---------- */
+
+label,
+.kicker,
+.eyebrow,
+.section-label {
+    color: var(--muted);
+}
+
+.dim,
+.muted,
+.hint,
+.help,
+.small {
+    color: var(--muted);
+}
+
+h1,
+h2,
+h3,
+h4 {
+    color: var(--text-strong);
+}
+
+
+/* ---------- STATUS ---------- */
+
+.statuschip,
+.chip {
+    background: var(--panel-2);
+    border-color: var(--border);
+    color: var(--muted);
+}
+
+.statuschip.ready,
+.statuschip.on {
+    color: var(--success);
+    border-color: rgba(120, 168, 120, 0.45);
+    background: var(--success-soft);
+}
+
+
+/* ---------- ENGINE ---------- */
+
+.engine-panel,
+.live-panel {
+    background: var(--panel);
+}
+
+.live-meta,
+.engine-value {
+    color: var(--text-strong);
+}
+
+.live-foot,
+.engine-foot {
+    color: var(--muted);
+}
+
+
+/* ---------- LINKS ---------- */
+
+a {
+    color: var(--accent);
+}
+
+a:hover {
+    color: var(--accent-hover);
+}
+
+
+/* ---------- MOVE LIST ---------- */
+
+.move,
+.move-row,
+.movelist > div {
+    border-color: var(--border-soft);
+}
+
+.move:hover,
+.move-row:hover {
+    background: var(--panel-2);
+}
+
+
+/* ---------- ACTIVE / SELECTED ELEMENTS ---------- */
+
+.selected,
+.active,
+.pick.on,
+.toggle.on {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--text-strong);
+}
+
+
+/* ---------- SUCCESS / WARNING / ERROR ---------- */
+
+.success,
+.good,
+.best {
+    color: var(--success);
+}
+
+.error,
+.bad,
+.blunder {
+    color: var(--danger);
+}
+
+
+/* ---------- CHESS BOARD ---------- */
+
+.board,
+.chessboard {
+    box-shadow:
+        0 10px 32px rgba(0, 0, 0, 0.18);
+}
+
+.square.light {
+    background: var(--board-light);
+}
+
+.square.dark {
+    background: var(--board-dark);
+}
+
+
+/* ---------- SCROLLBARS ---------- */
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 8px;
+}
+
+
+/* ---------- REDUCE VISUAL NOISE ---------- */
+
+.card,
+.panel,
+section,
+button,
+input,
+select,
+textarea {
+    transition:
+        background-color 160ms ease,
+        border-color 160ms ease,
+        color 160ms ease,
+        box-shadow 160ms ease;
+}
+
+
+/* ---------- MOBILE ---------- */
+
+@media (max-width: 700px) {
+    .card,
+    .panel,
+    section {
+        box-shadow: 0 5px 18px var(--shadow);
+    }
+}
+
+
+/* =========================================================
+   END CHESSMATE COLOR SYSTEM
+   ========================================================= */
+
+
+/* =========================================================
+   CHESSMATE â€” PREMIUM FOCUSED THEME
+   ========================================================= */
+
+:root,
+:root[data-theme="dark"] {
+    --bg: #0b0d0f !important;
+    --panel: #121518 !important;
+    --panel-2: #15191d !important;
+    --panel-3: #1a1f24 !important;
+
+    --border: #252a2f !important;
+    --border-soft: #1d2227 !important;
+    --border-strong: #323940 !important;
+
+    --text: #e7e8e4 !important;
+    --text-strong: #f1f1ed !important;
+    --muted: #8b9298 !important;
+    --muted-2: #656c72 !important;
+
+    --accent: #b99a5b !important;
+    --accent-hover: #c7a967 !important;
+    --accent-soft: rgba(185, 154, 91, 0.09) !important;
+
+    --success: #789b7c !important;
+    --success-soft: rgba(120, 155, 124, 0.09) !important;
+
+    --danger: #b97873 !important;
+    --danger-soft: rgba(185, 120, 115, 0.09) !important;
+
+    --board-light: #e8e3d3 !important;
+    --board-dark: #71865d !important;
+
+    --shadow: rgba(0, 0, 0, 0.28) !important;
+}
+
+
+:root[data-theme="light"] {
+    --bg: #f1f0eb !important;
+    --panel: #faf9f5 !important;
+    --panel-2: #f5f4ef !important;
+    --panel-3: #ecebe5 !important;
+
+    --border: #deddd6 !important;
+    --border-soft: #e8e7e1 !important;
+    --border-strong: #cecdc5 !important;
+
+    --text: #292c2f !important;
+    --text-strong: #17191b !important;
+    --muted: #73787d !important;
+    --muted-2: #969a9d !important;
+
+    --accent: #9a7b3f !important;
+    --accent-hover: #896b34 !important;
+    --accent-soft: rgba(154, 123, 63, 0.08) !important;
+
+    --success: #5e8062 !important;
+    --success-soft: rgba(94, 128, 98, 0.08) !important;
+
+    --danger: #9f625d !important;
+    --danger-soft: rgba(159, 98, 93, 0.08) !important;
+
+    --board-light: #eee9da !important;
+    --board-dark: #879b70 !important;
+
+    --shadow: rgba(30, 32, 34, 0.07) !important;
+}
+
+
+/* =========================================================
+   PAGE
+   ========================================================= */
+
+html,
+body {
+    background: var(--bg) !important;
+    color: var(--text) !important;
+}
+
+body {
+    letter-spacing: 0.005em;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.topbar {
+    background: transparent !important;
+    border: 0 !important;
+}
+
+.topbar h1,
+.topbar .brand-title {
+    color: var(--text-strong) !important;
+}
+
+.topbar .tagline,
+.tagline {
+    color: var(--muted) !important;
+}
+
+
+/* =========================================================
+   PANELS
+   ========================================================= */
+
+.card,
+.panel,
+section,
+.importer,
+.engine-panel,
+.review-panel,
+.moves-panel,
+.summary-panel {
+    background: var(--panel) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: none !important;
+}
+
+
+/* Don't make every nested element look like a card */
+.card .card,
+.panel .panel {
+    box-shadow: none !important;
+}
+
+
+/* =========================================================
+   MODE NAVIGATION
+   ========================================================= */
+
+.modetabs,
+.tabs {
+    background: transparent !important;
+    border-color: var(--border-soft) !important;
+}
+
+.modetab {
+    background: transparent !important;
+    color: var(--muted) !important;
+    border-color: transparent !important;
+}
+
+.modetab:hover {
+    background: var(--panel-2) !important;
+    color: var(--text) !important;
+}
+
+.modetab.on {
+    background: var(--accent-soft) !important;
+    border-color: rgba(185,154,91,.30) !important;
+    color: var(--accent) !important;
+}
+
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+button {
+    background: var(--panel-2) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+    box-shadow: none !important;
+}
+
+button:hover {
+    background: var(--panel-3) !important;
+    border-color: var(--border-strong) !important;
+}
+
+button:active {
+    transform: translateY(1px);
+}
+
+
+/* Primary button â€” restrained */
+
+button.primary,
+.primary {
+    background: var(--accent) !important;
+    color: #17140d !important;
+    border-color: var(--accent) !important;
+    box-shadow: none !important;
+}
+
+button.primary:hover,
+.primary:hover {
+    background: var(--accent-hover) !important;
+}
+
+
+/* Ghost buttons */
+
+button.ghost {
+    background: transparent !important;
+    color: var(--muted) !important;
+    border-color: transparent !important;
+}
+
+button.ghost:hover {
+    background: var(--panel-2) !important;
+    color: var(--text) !important;
+}
+
+button.ghost.on {
+    color: var(--accent) !important;
+    background: var(--accent-soft) !important;
+    border-color: rgba(185,154,91,.22) !important;
+}
+
+
+/* =========================================================
+   INPUTS
+   ========================================================= */
+
+input,
+select,
+textarea {
+    background: var(--panel-2) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+    box-shadow: none !important;
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+    border-color: var(--border-strong) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: rgba(185,154,91,.55) !important;
+    box-shadow: 0 0 0 2px rgba(185,154,91,.07) !important;
+}
+
+
+/* =========================================================
+   TEXT
+   ========================================================= */
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+    color: var(--text-strong) !important;
+}
+
+.dim,
+.muted,
+.hint,
+.help,
+.small,
+.kicker,
+.eyebrow {
+    color: var(--muted) !important;
+}
+
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+.statuschip,
+.chip {
+    background: var(--panel-2) !important;
+    color: var(--muted) !important;
+    border-color: var(--border) !important;
+}
+
+.statuschip.ready,
+.statuschip.on {
+    color: var(--success) !important;
+    background: var(--success-soft) !important;
+    border-color: rgba(120,155,124,.25) !important;
+}
+
+
+/* =========================================================
+   ENGINE
+   ========================================================= */
+
+.engine-panel,
+.live-panel {
+    background: var(--panel) !important;
+}
+
+#engineName {
+    color: var(--text-strong) !important;
+}
+
+.live-foot,
+.engine-foot {
+    color: var(--muted) !important;
+}
+
+
+/* =========================================================
+   MOVE LIST
+   ========================================================= */
+
+.move,
+.move-row,
+.movelist > div {
+    border-color: var(--border-soft) !important;
+}
+
+.move:hover,
+.move-row:hover {
+    background: var(--panel-2) !important;
+}
+
+
+/* =========================================================
+   ACTIVE / SELECTED
+   ========================================================= */
+
+.selected,
+.active,
+.pick.on,
+.toggle.on {
+    background: var(--accent-soft) !important;
+    border-color: rgba(185,154,91,.28) !important;
+    color: var(--text-strong) !important;
+}
+
+
+/* =========================================================
+   LINKS
+   ========================================================= */
+
+a {
+    color: var(--accent) !important;
+}
+
+a:hover {
+    color: var(--accent-hover) !important;
+}
+
+
+/* =========================================================
+   CHESS BOARD
+   ========================================================= */
+
+.board,
+.chessboard {
+    box-shadow:
+        0 18px 45px rgba(0,0,0,.24) !important;
+}
+
+.square.light {
+    background: var(--board-light) !important;
+}
+
+.square.dark {
+    background: var(--board-dark) !important;
+}
+
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
+* {
+    scrollbar-color: #343a40 transparent !important;
+}
+
+*::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: #343a40;
+    border-radius: 8px;
+}
+
+
+/* =========================================================
+   REMOVE EXCESSIVE GLOW
+   ========================================================= */
+
+* {
+    text-shadow: none !important;
+}
+
+.card,
+.panel,
+section,
+button,
+input,
+select,
+textarea {
+    transition:
+        background-color 150ms ease,
+        border-color 150ms ease,
+        color 150ms ease !important;
+}
+
+
+/* =========================================================
+   END PREMIUM FOCUSED THEME
+   ========================================================= */
+
+
+/* =========================================================
+   CHESSMATE â€” CHESS.COM INSPIRED GREEN UI
+   ========================================================= */
+
+:root,
+:root[data-theme="dark"] {
+    --bg: #262522 !important;
+    --panel: #302e2b !important;
+    --panel-2: #3a3835 !important;
+    --panel-3: #403e3b !important;
+
+    --border: #45433f !important;
+    --border-soft: #3b3936 !important;
+    --border-strong: #57544f !important;
+
+    --text: #f0f0ee !important;
+    --text-strong: #ffffff !important;
+    --muted: #aaa9a6 !important;
+    --muted-2: #777572 !important;
+
+    /* Chess.com-like green */
+    --accent: #81b64c !important;
+    --accent-hover: #91c957 !important;
+    --accent-soft: rgba(129, 182, 76, 0.14) !important;
+
+    --success: #81b64c !important;
+    --success-soft: rgba(129, 182, 76, 0.13) !important;
+
+    --danger: #d15b55 !important;
+    --danger-soft: rgba(209, 91, 85, 0.13) !important;
+
+    /* Green chess board */
+    --board-light: #ebecd0 !important;
+    --board-dark: #779556 !important;
+
+    --shadow: rgba(0, 0, 0, 0.28) !important;
+}
+
+
+:root[data-theme="light"] {
+    --bg: #f0f0f0 !important;
+    --panel: #ffffff !important;
+    --panel-2: #f5f5f5 !important;
+    --panel-3: #e9e9e9 !important;
+
+    --border: #d8d8d8 !important;
+    --border-soft: #e3e3e3 !important;
+    --border-strong: #c7c7c7 !important;
+
+    --text: #333333 !important;
+    --text-strong: #202020 !important;
+    --muted: #777777 !important;
+    --muted-2: #999999 !important;
+
+    --accent: #629924 !important;
+    --accent-hover: #70a92c !important;
+    --accent-soft: rgba(98, 153, 36, 0.10) !important;
+
+    --success: #629924 !important;
+    --success-soft: rgba(98, 153, 36, 0.10) !important;
+
+    --danger: #c6534d !important;
+    --danger-soft: rgba(198, 83, 77, 0.10) !important;
+
+    --board-light: #eeeed2 !important;
+    --board-dark: #769656 !important;
+
+    --shadow: rgba(0, 0, 0, 0.10) !important;
+}
+
+
+/* =========================================================
+   GLOBAL
+   ========================================================= */
+
+html,
+body {
+    background: var(--bg) !important;
+    color: var(--text) !important;
+}
+
+body {
+    text-shadow: none !important;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.topbar {
+    background: var(--bg) !important;
+    border: 0 !important;
+}
+
+.topbar .brand-title,
+.topbar h1 {
+    color: var(--text-strong) !important;
+}
+
+.topbar .tagline,
+.tagline {
+    color: var(--muted) !important;
+}
+
+
+/* =========================================================
+   MAIN NAVIGATION
+   ========================================================= */
+
+.modetabs,
+.tabs {
+    background: var(--panel) !important;
+    border-color: var(--border) !important;
+}
+
+.modetab {
+    color: var(--muted) !important;
+    background: transparent !important;
+    border-color: transparent !important;
+}
+
+.modetab:hover {
+    color: var(--text) !important;
+    background: var(--panel-2) !important;
+}
+
+.modetab.on {
+    color: #ffffff !important;
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+}
+
+
+/* =========================================================
+   CARDS / SIDEBARS
+   ========================================================= */
+
+.card,
+.panel,
+section,
+.importer,
+.engine-panel,
+.review-panel,
+.moves-panel,
+.summary-panel {
+    background: var(--panel) !important;
+    border-color: var(--border) !important;
+    box-shadow: 0 3px 12px var(--shadow) !important;
+}
+
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+button {
+    background: var(--panel-2) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+    box-shadow: none !important;
+}
+
+button:hover {
+    background: var(--panel-3) !important;
+    border-color: var(--border-strong) !important;
+}
+
+button.primary,
+.primary {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+}
+
+button.primary:hover,
+.primary:hover {
+    background: var(--accent-hover) !important;
+    border-color: var(--accent-hover) !important;
+}
+
+button.ghost {
+    background: transparent !important;
+    border-color: transparent !important;
+    color: var(--muted) !important;
+}
+
+button.ghost:hover {
+    background: var(--panel-2) !important;
+    color: var(--text) !important;
+}
+
+button.ghost.on {
+    color: var(--accent) !important;
+    background: var(--accent-soft) !important;
+    border-color: rgba(129,182,76,.25) !important;
+}
+
+
+/* =========================================================
+   INPUTS
+   ========================================================= */
+
+input,
+select,
+textarea {
+    background: var(--panel-2) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--muted-2) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--accent) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px rgba(129,182,76,.15) !important;
+}
+
+
+/* =========================================================
+   TEXT
+   ========================================================= */
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+    color: var(--text-strong) !important;
+}
+
+.dim,
+.muted,
+.hint,
+.help,
+.small,
+.kicker,
+.eyebrow {
+    color: var(--muted) !important;
+}
+
+
+/* =========================================================
+   ENGINE
+   ========================================================= */
+
+.engine-panel,
+.live-panel {
+    background: var(--panel) !important;
+}
+
+#engineName {
+    color: var(--text-strong) !important;
+}
+
+.live-meta {
+    color: var(--text-strong) !important;
+}
+
+.live-foot,
+.engine-foot {
+    color: var(--muted) !important;
+}
+
+
+/* =========================================================
+   ENGINE TOGGLE
+   ========================================================= */
+
+.toggle.on {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #ffffff !important;
+}
+
+
+/* =========================================================
+   PLAYER COLORS / PICKS
+   ========================================================= */
+
+.pick {
+    background: var(--panel-2) !important;
+    color: var(--muted) !important;
+    border-color: var(--border) !important;
+}
+
+.pick.on {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #ffffff !important;
+}
+
+
+/* =========================================================
+   MOVE LIST
+   ========================================================= */
+
+.move,
+.move-row,
+.movelist > div {
+    border-color: var(--border-soft) !important;
+}
+
+.move:hover,
+.move-row:hover {
+    background: var(--panel-2) !important;
+}
+
+
+/* =========================================================
+   ACTIVE / SELECTED
+   ========================================================= */
+
+.selected,
+.active {
+    background: var(--accent-soft) !important;
+    border-color: rgba(129,182,76,.35) !important;
+}
+
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+.statuschip,
+.chip {
+    background: var(--panel-2) !important;
+    border-color: var(--border) !important;
+    color: var(--muted) !important;
+}
+
+.statuschip.ready,
+.statuschip.on {
+    background: var(--success-soft) !important;
+    border-color: rgba(129,182,76,.30) !important;
+    color: var(--accent) !important;
+}
+
+
+/* =========================================================
+   LINKS
+   ========================================================= */
+
+a {
+    color: var(--accent) !important;
+}
+
+a:hover {
+    color: var(--accent-hover) !important;
+}
+
+
+/* =========================================================
+   CHESS BOARD
+   ========================================================= */
+
+.board,
+.chessboard {
+    box-shadow:
+        0 8px 24px rgba(0,0,0,.30) !important;
+}
+
+.square.light {
+    background: #ebecd0 !important;
+}
+
+.square.dark {
+    background: #779556 !important;
+}
+
+
+/* =========================================================
+   EVALUATION / BEST MOVE COLORS
+   ========================================================= */
+
+.best,
+.excellent,
+.good {
+    color: #81b64c !important;
+}
+
+.blunder,
+.mistake {
+    color: #d15b55 !important;
+}
+
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #55524e transparent !important;
+}
+
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: #55524e;
+    border-radius: 8px;
+}
+
+
+/* =========================================================
+   REMOVE GOLD / BROWN VISUAL REMNANTS
+   ========================================================= */
+
+[style*="#b99a5b"],
+[style*="#c7a967"],
+[style*="#aa8430"],
+[style*="#9a7b3f"] {
+    color: var(--accent) !important;
+}
+
+
+/* =========================================================
+   END CHESS.COM INSPIRED CHESSMATE THEME
+   ========================================================= */
+
+
+/* =========================================================
+   CHESSMATE â€” CHESS.COM GREEN BOARD
+   ========================================================= */
+
+:root {
+    --chess-light: #EBECD0;
+    --chess-dark: #779556;
+}
+
+
+/* Main board squares */
+
+.board .light,
+.chessboard .light,
+.square.light {
+    background: #EBECD0 !important;
+}
+
+.board .dark,
+.chessboard .dark,
+.square.dark {
+    background: #779556 !important;
+}
+
+
+/* Board itself */
+
+.board,
+.chessboard {
+    background: #779556 !important;
+    border-radius: 8px !important;
+    overflow: hidden;
+}
+
+
+/* Coordinates */
+
+.board .coord,
+.chessboard .coord {
+    color: #779556 !important;
+}
+
+
+/* Keep the board clean */
+
+.board *,
+.chessboard * {
+    text-shadow: none;
+}
+
+
+/* Last-move highlighting */
+
+.square.last,
+.square.last-move {
+    background: rgba(246, 246, 105, 0.55) !important;
+}
+
+
+/* Selected square */
+
+.square.selected {
+    background: rgba(246, 246, 105, 0.65) !important;
+}
+
+
+/* Legal move marker */
+
+.square .move-dot {
+    background: rgba(0, 0, 0, 0.18);
+}
+
+
+/* Capture marker */
+
+.square.capture::after {
+    border-color: rgba(0, 0, 0, 0.20);
+}
+
+
+/* =========================================================
+   END CHESS.COM BOARD
+   ========================================================= */
+
+
+/* CHESSMATE â€” MATCHED BROWN BOARD PALETTE */
+
+:root {
+    --chess-light: #EDD6B0;
+    --chess-dark: #B88762;
+}
+
+.board .light,
+.chessboard .light,
+.square.light {
+    background: #EDD6B0 !important;
+}
+
+.board .dark,
+.chessboard .dark,
+.square.dark {
+    background: #B88762 !important;
+}
+
+
+/* =========================================================
+   CHESSMATE â€” ACTUAL BOARD SQUARE COLORS
+   Renderer uses .sq.l and .sq.d
+   ========================================================= */
+
+.sq.l {
+    background: #EDD6B0 !important;
+}
+
+.sq.d {
+    background: #B88762 !important;
+}
+
+/* Keep the CSS variables synchronized */
+:root,
+:root[data-theme="dark"],
+:root[data-theme="light"] {
+    --sq-l: #EDD6B0 !important;
+    --sq-d: #B88762 !important;
+    --board-light: #EDD6B0 !important;
+    --board-dark: #B88762 !important;
+}
+
+
+/* =========================================================
+   BOOK READER NAVIGATION TAB
+   ========================================================= */
+
+.book-reader-tab {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: inherit;
+}
+
+.book-reader-tab:hover {
+    text-decoration: none;
+}
+
+
+/* =========================================================
+   CHESSMATE GLASS NAVIGATION
+   Analyze â€¢ Free Board â€¢ Play Magnus â€¢ Book Reader
+   ========================================================= */
+
+.modebar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    padding: 7px;
+
+    /* Glass */
+    background: rgba(255, 255, 255, 0.055);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+
+    box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.10);
+
+    overflow: hidden;
+
+    /* Smooth entrance */
+    animation: glassNavIn .55s ease-out both;
+}
+
+/* Moving glass reflection */
+.modebar::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -35%;
+
+    width: 25%;
+
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255,255,255,.10),
+        transparent
+    );
+
+    transform: skewX(-20deg);
+    pointer-events: none;
+
+    animation: glassSweep 6s ease-in-out infinite;
+}
+
+/* Individual tabs */
+.modebar .modetab {
+    position: relative;
+    z-index: 1;
+
+    flex: 1;
+
+    min-height: 42px;
+    padding: 10px 18px;
+
+    border: 1px solid transparent;
+    border-radius: 11px;
+
+    background: rgba(255, 255, 255, 0.025);
+
+    color: var(--muted);
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition:
+        color .25s ease,
+        background .25s ease,
+        border-color .25s ease,
+        box-shadow .25s ease,
+        transform .25s cubic-bezier(.2,.8,.2,1);
+}
+
+/* Hover */
+.modebar .modetab:hover {
+    color: var(--text-strong);
+
+    background: rgba(255, 255, 255, 0.085);
+
+    border-color: rgba(255,255,255,.13);
+
+    box-shadow:
+        0 5px 18px rgba(0,0,0,.15),
+        inset 0 1px 0 rgba(255,255,255,.08);
+
+    transform: translateY(-1px);
+}
+
+/* Press */
+.modebar .modetab:active {
+    transform: scale(.97);
+}
+
+/* Active glass tab */
+.modebar .modetab.on {
+    color: var(--text-strong);
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(255,255,255,.13),
+            rgba(255,255,255,.055)
+        );
+
+    border-color: rgba(255,255,255,.18);
+
+    box-shadow:
+        0 5px 20px rgba(0,0,0,.20),
+        inset 0 1px 0 rgba(255,255,255,.14);
+
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+/* Active glow */
+.modebar .modetab.on::after {
+    content: "";
+    position: absolute;
+
+    left: 18%;
+    right: 18%;
+    bottom: 4px;
+
+    height: 2px;
+
+    border-radius: 999px;
+
+    background: var(--accent);
+
+    box-shadow:
+        0 0 8px var(--accent),
+        0 0 18px rgba(200,163,78,.30);
+
+    opacity: .9;
+
+    animation: activeGlow 2.4s ease-in-out infinite;
+}
+
+/* Book Reader gets a slightly special glass treatment */
+.modebar .book-reader-tab {
+    color: var(--text);
+}
+
+.modebar .book-reader-tab:hover {
+    background:
+        linear-gradient(
+            135deg,
+            rgba(200,163,78,.13),
+            rgba(255,255,255,.055)
+        );
+
+    border-color: rgba(200,163,78,.25);
+
+    box-shadow:
+        0 5px 20px rgba(0,0,0,.18),
+        0 0 18px rgba(200,163,78,.08);
+}
+
+/* =========================================================
+   OPTIONAL: MAKE THE WHOLE TOP HEADER GLASSY
+   ========================================================= */
+
+.topbar {
+    position: relative;
+
+    background: rgba(255,255,255,.045) !important;
+
+    border: 1px solid rgba(255,255,255,.09) !important;
+    border-radius: 18px;
+
+    backdrop-filter: blur(18px) saturate(135%);
+    -webkit-backdrop-filter: blur(18px) saturate(135%);
+
+    box-shadow:
+        0 12px 35px rgba(0,0,0,.16),
+        inset 0 1px 0 rgba(255,255,255,.08);
+
+    overflow: hidden;
+
+    animation: glassHeaderIn .65s ease-out both;
+}
+
+/* Header reflection */
+.topbar::after {
+    content: "";
+
+    position: absolute;
+    top: 0;
+    left: -30%;
+
+    width: 20%;
+    height: 100%;
+
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255,255,255,.07),
+        transparent
+    );
+
+    transform: skewX(-20deg);
+
+    pointer-events: none;
+
+    animation: headerSweep 8s ease-in-out infinite;
+}
+
+/* =========================================================
+   ANIMATIONS
+   ========================================================= */
+
+@keyframes glassNavIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes glassHeaderIn {
+    from {
+        opacity: 0;
+        transform: translateY(-12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes glassSweep {
+    0% {
+        left: -35%;
+        opacity: 0;
+    }
+
+    15% {
+        opacity: 1;
+    }
+
+    45% {
+        left: 110%;
+        opacity: .65;
+    }
+
+    100% {
+        left: 110%;
+        opacity: 0;
+    }
+}
+
+@keyframes headerSweep {
+    0% {
+        left: -30%;
+        opacity: 0;
+    }
+
+    15% {
+        opacity: .8;
+    }
+
+    45% {
+        left: 110%;
+        opacity: .45;
+    }
+
+    100% {
+        left: 110%;
+        opacity: 0;
+    }
+}
+
+@keyframes activeGlow {
+    0%, 100% {
+        opacity: .55;
+        transform: scaleX(.92);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scaleX(1);
+    }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+    .modebar {
+        gap: 4px;
+        padding: 5px;
+        border-radius: 13px;
+    }
+
+    .modebar .modetab {
+        min-height: 38px;
+        padding: 8px 8px;
+        font-size: 12px;
+    }
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+    .modebar,
+    .topbar,
+    .modebar::before,
+    .topbar::after,
+    .modebar .modetab.on::after {
+        animation: none !important;
+    }
+
+    .modebar .modetab {
+        transition: none !important;
+    }
+}
+
+
+/* =========================================================
+   CHESSMATE HEADER â€” CLEAN LOGO + TITLE
+   ========================================================= */
+
+.topbar .brand {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.topbar .brand-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+}
+
+/* Logo container */
+.topbar .brand-logo-wrap {
+    width: 72px;
+    height: 48px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    flex-shrink: 0;
+
+    overflow: hidden;
+
+    border-radius: 4px;
+}
+
+/* Actual logo */
+.topbar .site-logo {
+    display: block;
+
+    width: 72px;
+    height: 48px;
+
+    object-fit: contain;
+}
+
+/* ChessMate title */
+.topbar .brand-name {
+    display: block;
+
+    font-size: 25px;
+    font-weight: 800;
+    line-height: 1;
+
+    letter-spacing: -0.5px;
+
+    white-space: nowrap;
+}
+
+/* Subtitle */
+.topbar .tagline {
+    margin-top: 9px;
+    margin-left: 86px;
+
+    font-size: 14px;
+    line-height: 1.25;
+
+    color: var(--muted);
+
+    white-space: nowrap;
+}
+
+/* Keep the header vertically balanced */
+.topbar .brand > div {
+    min-width: 0;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+    .topbar .brand-title {
+        gap: 10px;
+    }
+
+    .topbar .brand-logo-wrap,
+    .topbar .site-logo {
+        width: 58px;
+        height: 40px;
+    }
+
+    .topbar .brand-name {
+        font-size: 21px;
+    }
+
+    .topbar .tagline {
+        margin-left: 68px;
+        font-size: 12px;
+    }
+}
+
+/* =========================================================
+   CHESSMATE BRAND â€” CLEAN HEADER
+   ========================================================= */
+
+.topbar .brand {
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+.topbar .brand-title {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+
+    gap: 16px;
+
+    margin: 0;
+    padding: 0;
+
+    line-height: 1;
+}
+
+/* Logo */
+.topbar .brand-logo-wrap {
+    width: 74px;
+    height: 50px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    flex-shrink: 0;
+
+    margin: 0;
+    padding: 0;
+
+    overflow: hidden;
+}
+
+.topbar .site-logo {
+    display: block;
+
+    width: 74px;
+    height: 50px;
+
+    object-fit: contain;
+
+    margin: 0;
+    padding: 0;
+}
+
+/* ChessMate title */
+.topbar .brand-name {
+    display: flex;
+    align-items: center;
+
+    margin: 0;
+    padding: 0;
+
+    font-size: 26px;
+    font-weight: 800;
+
+    line-height: 1;
+    letter-spacing: -0.7px;
+
+    white-space: nowrap;
+}
+
+/* Remove any old tagline spacing/rules */
+.topbar .tagline {
+    display: none !important;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+
+    .topbar .brand-title {
+        gap: 11px;
+    }
+
+    .topbar .brand-logo-wrap,
+    .topbar .site-logo {
+        width: 58px;
+        height: 40px;
+    }
+
+    .topbar .brand-name {
+        font-size: 21px;
+        letter-spacing: -0.4px;
+    }
+}
+
+/* =========================================================
+   CHESSMATE â€” GLOBAL CHESS.COM STYLE BUTTONS
+   Button 66 inspired, Chess.com green
+   ========================================================= */
+
+button,
+button.button-66,
+.reader-tool,
+.move-control,
+.move-button,
+.book-control,
+.notation-control,
+.board-control,
+.analysis-button,
+.book-button,
+.control-button {
+    background-color: #81b64c !important;
+    border-radius: 4px !important;
+    border: 0 !important;
+
+    box-shadow:
+        rgba(45, 78, 20, 0.55) 0 -1px 3px 0 inset,
+        rgba(0, 0, 0, 0.18) 0 3px 6px 0 !important;
+
+    box-sizing: border-box;
+    color: #ffffff !important;
+
+    cursor: pointer;
+
+    font-family:
+        "Space Grotesk",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif !important;
+
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 24px;
+
+    margin: 0;
+
+    min-height: 44px;
+    min-width: 100px;
+
+    padding: 10px 20px;
+
+    position: relative;
+    text-align: center;
+
+    user-select: none;
+    -webkit-user-select: none;
+
+    touch-action: manipulation;
+    vertical-align: middle;
+
+    transition:
+        background-color 0.2s cubic-bezier(.22, .61, .36, 1),
+        transform 0.2s cubic-bezier(.22, .61, .36, 1),
+        box-shadow 0.2s cubic-bezier(.22, .61, .36, 1);
+}
+
+/* Hover */
+button:hover,
+button.button-66:hover,
+.reader-tool:hover,
+.move-control:hover,
+.move-button:hover,
+.book-control:hover,
+.notation-control:hover,
+.board-control:hover,
+.analysis-button:hover,
+.book-button:hover,
+.control-button:hover {
+    background-color: #6f9f3f !important;
+
+    transform: translateY(-2px);
+
+    box-shadow:
+        rgba(45, 78, 20, 0.65) 0 -1px 3px 0 inset,
+        rgba(0, 0, 0, 0.24) 0 5px 9px 0 !important;
+}
+
+/* Pressed */
+button:active,
+button.button-66:active,
+.reader-tool:active,
+.move-control:active,
+.move-button:active,
+.book-control:active,
+.notation-control:active,
+.board-control:active,
+.analysis-button:active,
+.book-button:active,
+.control-button:active {
+    transform: translateY(1px) !important;
+
+    box-shadow:
+        rgba(45, 78, 20, 0.65) 0 1px 3px 0 inset,
+        rgba(0, 0, 0, 0.14) 0 2px 3px 0 !important;
+}
+
+/* Keyboard focus */
+button:focus-visible,
+.reader-tool:focus-visible,
+.move-control:focus-visible,
+.move-button:focus-visible {
+    outline: 2px solid #b7d98b !important;
+    outline-offset: 2px;
+}
+
+/* Disabled */
+button:disabled,
+button.disabled,
+.reader-tool:disabled,
+.move-control:disabled,
+.move-button:disabled {
+    background-color: #6f765f !important;
+    color: rgba(255, 255, 255, 0.65) !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+
+    box-shadow:
+        rgba(0, 0, 0, 0.18) 0 1px 2px 0 inset !important;
+}
+
+/* Active tool/button */
+.reader-tool.active,
+button.active,
+button[aria-pressed="true"] {
+    background-color: #629924 !important;
+
+    box-shadow:
+        rgba(38, 65, 17, 0.7) 0 2px 4px 0 inset,
+        rgba(0, 0, 0, 0.2) 0 2px 5px 0 !important;
+}
+
+/* Small navigation buttons */
+.move-control,
+.move-button {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 8px 12px !important;
+}
+
+/* Compact Flip / Clear / tools */
+.reader-tool {
+    min-height: 40px !important;
+    min-width: 80px !important;
+    padding: 8px 16px !important;
+}
+
+/* Larger primary actions */
+.book-control,
+.analysis-button,
+.book-button {
+    min-height: 48px !important;
+    min-width: 120px !important;
+    padding: 12px 24px !important;
+}
+
+/* Desktop â€” Button 66 style spacing */
+@media (min-width: 768px) {
+    button,
+    button.button-66,
+    .book-control,
+    .analysis-button,
+    .book-button {
+        padding: 12px 28px;
+    }
+}
+
+/* Keep icon-only buttons compact */
+button.icon-button,
+button[data-action="first"],
+button[data-action="prev"],
+button[data-action="next"],
+button[data-action="last"] {
+    min-width: 44px !important;
+    width: 44px;
+    padding: 8px !important;
+}
+
+/* Prevent button text from becoming selectable */
+button * {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+
+/* =========================================================
+   CHESSMATE â€” LIFTED CHESS PIECE
+   Chess.com-style drag interaction
+   ========================================================= */
+
+.chessmate-drag-piece {
+    position: fixed !important;
+    z-index: 99999 !important;
+
+    pointer-events: none !important;
+
+    transform-origin: center center !important;
+
+    transition:
+        transform 120ms cubic-bezier(.22, .61, .36, 1),
+        filter 120ms cubic-bezier(.22, .61, .36, 1);
+
+    filter:
+        drop-shadow(0 8px 5px rgba(0, 0, 0, 0.28))
+        drop-shadow(0 14px 12px rgba(0, 0, 0, 0.16));
+}
+
+.chessmate-drag-piece.lifted {
+    transform: scale(1.10) translateY(-7px) !important;
+
+    filter:
+        drop-shadow(0 12px 7px rgba(0, 0, 0, 0.32))
+        drop-shadow(0 20px 16px rgba(0, 0, 0, 0.18));
+}
+
+.chessmate-drag-piece.returning {
+    transition:
+        left 400ms cubic-bezier(.22, .61, .36, 1),
+        top 400ms cubic-bezier(.22, .61, .36, 1),
+        transform 400ms cubic-bezier(.22, .61, .36, 1),
+        filter 250ms ease;
+}
+/* ============================================================
+   CHESSMATE â€” CHESS.COM STYLE GLASS MOVE LIST
+   ============================================================ */
+
+.analysis-panel .notation,
+.analysis-panel .move-list,
+.analysis-panel .notation-panel,
+.analysis-panel .moves-table {
+
+    /* Glass */
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.075),
+            rgba(255, 255, 255, 0.035)
+        ) !important;
+
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+
+    /* Glass edge */
+    border: 1px solid rgba(255, 255, 255, 0.11) !important;
+    border-radius: 10px !important;
+
+    /* Depth */
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.075),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.12),
+        0 8px 28px rgba(0, 0, 0, 0.18) !important;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding: 4px !important;
+}
+
+
+/* ============================================================
+   MOVE LIST HEADER
+   ============================================================ */
+
+.analysis-panel .notation-header,
+.analysis-panel .moves-header {
+
+    display: flex;
+    align-items: center;
+
+    min-height: 32px;
+    padding: 0 10px;
+
+    color: rgba(255, 255, 255, 0.55);
+
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+
+    border-bottom:
+        1px solid rgba(255, 255, 255, 0.07);
+
+    background:
+        rgba(255, 255, 255, 0.025);
+}
+
+
+/* ============================================================
+   CHESS.COM STYLE MOVE ROW
+   ============================================================ */
+
+.analysis-panel .notation-row,
+.analysis-panel .move-row,
+.analysis-panel .notation-line,
+.analysis-panel .move-item {
+
+    display: grid;
+
+    /* move number | white | black */
+    grid-template-columns:
+        42px
+        minmax(0, 1fr)
+        minmax(0, 1fr);
+
+    align-items: center;
+
+    min-height: 34px;
+
+    padding: 0 3px;
+
+    border: none !important;
+    border-radius: 5px;
+
+    background: transparent !important;
+
+    transition:
+        background 120ms ease,
+        box-shadow 120ms ease;
+}
+
+
+/* ============================================================
+   MOVE NUMBER
+   ============================================================ */
+
+.analysis-panel .move-number,
+.analysis-panel .ply-number,
+.analysis-panel .notation-number {
+
+    display: flex;
+    align-items: center;
+
+    height: 100%;
+
+    padding-left: 8px;
+
+    color: rgba(255, 255, 255, 0.38) !important;
+
+    font-size: 12px;
+    font-weight: 600;
+
+    user-select: none;
+}
+
+
+/* ============================================================
+   MOVE CELLS
+   ============================================================ */
+
+.analysis-panel .move,
+.analysis-panel .move-san,
+.analysis-panel .notation-move {
+
+    display: flex;
+    align-items: center;
+
+    height: 28px;
+
+    padding: 0 9px;
+
+    color: rgba(255, 255, 255, 0.86) !important;
+
+    font-size: 14px;
+    font-weight: 500;
+
+    border-radius: 4px;
+
+    cursor: pointer;
+
+    transition:
+        background 120ms ease,
+        color 120ms ease;
+}
+
+
+/* ============================================================
+   HOVER â€” CHESS.COM FEEL
+   ============================================================ */
+
+.analysis-panel .move:hover,
+.analysis-panel .move-san:hover,
+.analysis-panel .notation-move:hover {
+
+    background:
+        rgba(255, 255, 255, 0.075) !important;
+
+    color: #ffffff !important;
+}
+
+
+/* ============================================================
+   ROW HOVER
+   ============================================================ */
+
+.analysis-panel .notation-row:hover,
+.analysis-panel .move-row:hover,
+.analysis-panel .notation-line:hover,
+.analysis-panel .move-item:hover {
+
+    background:
+        rgba(255, 255, 255, 0.035) !important;
+}
+
+
+/* ============================================================
+   CURRENT MOVE â€” CHESS.COM GREEN
+   ============================================================ */
+
+.analysis-panel .notation-row.active,
+.analysis-panel .notation-row.current,
+.analysis-panel .move-row.active,
+.analysis-panel .move-row.current,
+.analysis-panel .move-item.active,
+.analysis-panel .move-item.current {
+
+    background:
+        rgba(129, 182, 76, 0.20) !important;
+
+    box-shadow:
+        inset 3px 0 0 #81b64c;
+
+    border-radius: 5px;
+}
+
+
+/* Current move text */
+
+.analysis-panel .notation-row.active .move,
+.analysis-panel .notation-row.current .move,
+.analysis-panel .move-row.active .move,
+.analysis-panel .move-row.current .move {
+
+    color: #ffffff !important;
+    font-weight: 700;
+}
+
+
+/* Current move number */
+
+.analysis-panel .notation-row.active .move-number,
+.analysis-panel .notation-row.current .move-number {
+
+    color: rgba(255, 255, 255, 0.68) !important;
+}
+
+
+/* ============================================================
+   SELECTED MOVE
+   ============================================================ */
+
+.analysis-panel .move.selected,
+.analysis-panel .notation-move.selected {
+
+    background:
+        rgba(129, 182, 76, 0.28) !important;
+
+    color: #ffffff !important;
+
+    font-weight: 700;
+}
+
+
+/* ============================================================
+   MOVE SEPARATOR
+   ============================================================ */
+
+.analysis-panel .notation-row + .notation-row,
+.analysis-panel .move-row + .move-row {
+
+    border-top:
+        1px solid rgba(255, 255, 255, 0.025) !important;
+}
+
+
+/* ============================================================
+   EMPTY / UNFINISHED BLACK MOVE
+   ============================================================ */
+
+.analysis-panel .move.empty,
+.analysis-panel .move:empty {
+
+    cursor: default;
+
+    background: transparent !important;
+}
+
+
+/* ============================================================
+   SCROLLBAR â€” THIN CHESS.COM STYLE
+   ============================================================ */
+
+.analysis-panel .notation::-webkit-scrollbar,
+.analysis-panel .move-list::-webkit-scrollbar,
+.analysis-panel .moves-table::-webkit-scrollbar {
+
+    width: 6px;
+}
+
+
+.analysis-panel .notation::-webkit-scrollbar-track,
+.analysis-panel .move-list::-webkit-scrollbar-track,
+.analysis-panel .moves-table::-webkit-scrollbar-track {
+
+    background: transparent;
+}
+
+
+.analysis-panel .notation::-webkit-scrollbar-thumb,
+.analysis-panel .move-list::-webkit-scrollbar-thumb,
+.analysis-panel .moves-table::-webkit-scrollbar-thumb {
+
+    background:
+        rgba(255, 255, 255, 0.16);
+
+    border-radius: 20px;
+}
+
+
+.analysis-panel .notation::-webkit-scrollbar-thumb:hover,
+.analysis-panel .move-list::-webkit-scrollbar-thumb:hover,
+.analysis-panel .moves-table::-webkit-scrollbar-thumb:hover {
+
+    background:
+        rgba(255, 255, 255, 0.28);
+}
+
+
+/* ============================================================
+   MOVE LIST TEXT QUALITY
+   ============================================================ */
+
+.analysis-panel .notation,
+.analysis-panel .move-list,
+.analysis-panel .moves-table {
+
+    font-variant-numeric: tabular-nums;
+    scrollbar-width: thin;
+}
+
+
+/* ============================================================
+   MOBILE / NARROW PANEL
+   ============================================================ */
+
+@media (max-width: 700px) {
+
+    .analysis-panel .notation-row,
+    .analysis-panel .move-row,
+    .analysis-panel .notation-line,
+    .analysis-panel .move-item {
+
+        grid-template-columns:
+            34px
+            minmax(0, 1fr)
+            minmax(0, 1fr);
+
+        min-height: 32px;
+    }
+
+    .analysis-panel .move,
+    .analysis-panel .move-san,
+    .analysis-panel .notation-move {
+
+        font-size: 13px;
+        padding: 0 6px;
+    }
+}
+/* ============================================================
+   CHESSMATE MOVE LIST
+   Glass + Chess.com inspired
+   Targets the ACTUAL DOM generated by book-reader.js
+   ============================================================ */
+
+/* Main move-list container */
+#moveNotation {
+    position: relative;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.065),
+            rgba(255, 255, 255, 0.025)
+        ) !important;
+
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    border-radius: 10px !important;
+
+    backdrop-filter: blur(18px) saturate(135%);
+    -webkit-backdrop-filter: blur(18px) saturate(135%);
+
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.07),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.15),
+        0 8px 25px rgba(0, 0, 0, 0.18);
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding: 5px !important;
+
+    scrollbar-width: thin;
+}
+
+
+/* ============================================================
+   MOVE ROW
+   Actual structure:
+
+   .notation-row
+       span  -> move number
+       span  -> move notation
+   ============================================================ */
+
+#moveNotation .notation-row {
+    display: grid !important;
+
+    grid-template-columns:
+        42px
+        minmax(0, 1fr);
+
+    align-items: center;
+
+    min-height: 34px;
+
+    margin: 1px 0;
+
+    border-radius: 5px;
+
+    background: transparent !important;
+
+    transition:
+        background 120ms ease,
+        box-shadow 120ms ease;
+}
+
+
+/* ============================================================
+   MOVE NUMBER
+   ============================================================ */
+
+#moveNotation .notation-row > span:first-child {
+    display: flex;
+
+    align-items: center;
+
+    height: 30px;
+
+    padding-left: 9px;
+
+    color: rgba(255, 255, 255, 0.36);
+
+    font-size: 12px;
+    font-weight: 600;
+
+    font-variant-numeric: tabular-nums;
+
+    user-select: none;
+}
+
+
+/* ============================================================
+   MOVE TEXT
+   ============================================================ */
+
+#moveNotation .notation-row > span:nth-child(2) {
+    display: flex;
+
+    align-items: center;
+
+    min-width: 0;
+    height: 30px;
+
+    padding: 0 10px;
+
+    color: rgba(255, 255, 255, 0.88);
+
+    font-size: 14px;
+    font-weight: 500;
+
+    letter-spacing: 0.01em;
+
+    border-radius: 4px;
+
+    cursor: default;
+
+    transition:
+        background 120ms ease,
+        color 120ms ease;
+}
+
+
+/* ============================================================
+   HOVER
+   ============================================================ */
+
+#moveNotation .notation-row:hover {
+    background:
+        rgba(255, 255, 255, 0.045) !important;
+}
+
+
+#moveNotation .notation-row:hover > span:nth-child(2) {
+    background:
+        rgba(255, 255, 255, 0.065);
+
+    color: #ffffff;
+}
+
+
+/* ============================================================
+   ALTERNATING ROW â€” VERY SUBTLE
+   ============================================================ */
+
+#moveNotation .notation-row:nth-child(even) {
+    background:
+        rgba(255, 255, 255, 0.018) !important;
+}
+
+
+/* ============================================================
+   EMPTY STATE
+   ============================================================ */
+
+#moveNotation .move-notation-empty {
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    min-height: 70px;
+
+    color: rgba(255, 255, 255, 0.38);
+
+    font-size: 13px;
+
+    letter-spacing: 0.01em;
+}
+
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+
+#moveNotation::-webkit-scrollbar {
+    width: 5px;
+}
+
+
+#moveNotation::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+
+#moveNotation::-webkit-scrollbar-thumb {
+    background:
+        rgba(255, 255, 255, 0.16);
+
+    border-radius: 20px;
+}
+
+
+#moveNotation::-webkit-scrollbar-thumb:hover {
+    background:
+        rgba(255, 255, 255, 0.27);
+}
+
+
+/* ============================================================
+   MOVE COUNT
+   ============================================================ */
+
+#moveNotationCount {
+    color: rgba(255, 255, 255, 0.42);
+
+    font-size: 11px;
+    font-weight: 600;
+
+    font-variant-numeric: tabular-nums;
+}
+
+
+/* ============================================================
+   GLASS EDGE
+   ============================================================ */
+
+#moveNotation::before {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: 10px;
+    right: 10px;
+
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.14),
+            transparent
+        );
+
+    pointer-events: none;
+}
+
+
+
+/* ============================================================
+   CHESSMATE â€” CHESS.COM STYLE GLASS MOVE LIST
+   ============================================================ */
+
+#moveNotation {
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255,255,255,.065),
+            rgba(255,255,255,.025)
+        ) !important;
+
+    border: 1px solid rgba(255,255,255,.10) !important;
+    border-radius: 10px !important;
+
+    backdrop-filter: blur(18px) saturate(135%);
+    -webkit-backdrop-filter: blur(18px) saturate(135%);
+
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.07),
+        inset 0 -1px 0 rgba(0,0,0,.15),
+        0 8px 25px rgba(0,0,0,.18);
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding: 5px !important;
+    scrollbar-width: thin;
+}
+
+#moveNotation .notation-row {
+    display: grid !important;
+
+    grid-template-columns:
+        42px
+        minmax(0,1fr)
+        minmax(0,1fr);
+
+    align-items: center;
+
+    min-height: 34px;
+    margin: 1px 0;
+    padding: 2px;
+
+    border-radius: 5px;
+
+    background: transparent !important;
+
+    transition:
+        background 120ms ease,
+        box-shadow 120ms ease;
+}
+
+#moveNotation .notation-row:hover {
+    background:
+        rgba(255,255,255,.045) !important;
+}
+
+#moveNotation .notation-move-number {
+    display: flex;
+    align-items: center;
+
+    height: 30px;
+    padding-left: 8px;
+
+    color: rgba(255,255,255,.38);
+
+    font-size: 12px;
+    font-weight: 600;
+
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+}
+
+#moveNotation .notation-white,
+#moveNotation .notation-black {
+    display: flex;
+    align-items: center;
+
+    height: 30px;
+    padding: 0 9px;
+
+    border-radius: 4px;
+
+    color: rgba(255,255,255,.88);
+
+    font-size: 14px;
+    font-weight: 500;
+
+    font-variant-numeric: tabular-nums;
+
+    transition:
+        background 120ms ease,
+        color 120ms ease;
+}
+
+#moveNotation .notation-white:hover,
+#moveNotation .notation-black:hover {
+    background:
+        rgba(255,255,255,.075);
+
+    color: #fff;
+}
+
+#moveNotation .notation-row:last-child {
+    background:
+        rgba(129,182,76,.10) !important;
+
+    box-shadow:
+        inset 3px 0 0 rgba(129,182,76,.75);
+}
+
+#moveNotation .notation-row:last-child
+.notation-white,
+#moveNotation .notation-row:last-child
+.notation-black {
+    color: #fff;
+    font-weight: 600;
+}
+
+#moveNotation .move-notation-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 70px;
+
+    color: rgba(255,255,255,.38);
+    font-size: 13px;
+}
+
+#moveNotation::-webkit-scrollbar {
+    width: 5px;
+}
+
+#moveNotation::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#moveNotation::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,.16);
+    border-radius: 20px;
+}
+
+#moveNotation::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,.28);
+}
+
+@media (max-width:700px) {
+
+    #moveNotation .notation-row {
+        grid-template-columns:
+            34px
+            minmax(0,1fr)
+            minmax(0,1fr);
+    }
+
+    #moveNotation .notation-white,
+    #moveNotation .notation-black {
+        padding: 0 6px;
+        font-size: 13px;
+    }
+}
+
+
+/* CHESSMATE HOME GAME OVERLAY */
+
+/* CHESSMATE HOME GAME OVERLAY */
+.chessmate-board-shell {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  aspect-ratio: 1;
+}
+
+.chessmate-board-shell > .board {
+  width: 100%;
+  height: 100%;
+}
+
+.chessmate-board-shell .chessmate-game-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(8, 10, 14, 0.58);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: scale(0.96);
+  transition: opacity 180ms ease, visibility 180ms ease, transform 180ms ease;
+  z-index: 20;
+}
+
+.chessmate-board-shell .chessmate-game-overlay.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1);
+}
+
+.chessmate-board-shell .chessmate-game-overlay-card {
+  min-width: min(260px, 82%);
+  max-width: 88%;
+  padding: 22px 28px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  background: rgba(18, 21, 27, 0.88);
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.42);
+}
+
+.chessmate-board-shell .chessmate-game-overlay-title {
+  font-size: clamp(24px, 3vw, 38px);
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.chessmate-board-shell .chessmate-game-overlay-subtitle {
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.chessmate-board-shell .chessmate-game-overlay-subtitle:empty {
+  display: none;
+}
+
+/* ---------- Game Review action ---------- */
+.game-review-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 5px;
+  padding: 4px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .15s ease, transform .15s ease, border-color .15s ease;
+}
+
+.game-review-btn:hover {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.game-review-btn:active {
+  transform: translateY(0);
+}
+
+.game-review-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 520px) {
+  .game-review-btn {
+    font-size: 9px;
+    padding: 3px 6px;
+  }
+}
+
+/* ============================================================
+   CHESSMATE GAME REVIEW HEADER
+   Step 20C
+   ============================================================ */
+
+.review-header-card {
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255,255,255,.035),
+      rgba(255,255,255,.012)
+    ),
+    var(--card);
+}
+
+.review-header-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--accent);
+  opacity: .85;
+}
+
+.review-header-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.review-header-copy {
+  min-width: 0;
+}
+
+.review-kicker {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--accent-ink);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.review-header-copy h2 {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--serif, Georgia, serif);
+  font-size: clamp(20px, 2.2vw, 27px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -.01em;
+}
+
+.review-header-meta {
+  margin-top: 6px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.review-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.review-header-actions button {
+  white-space: nowrap;
+}
+
+.review-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.review-stat {
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(0,0,0,.12);
+}
+
+.review-stat span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  line-height: 1.25;
+}
+
+.review-stat strong {
+  display: block;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.review-stat.danger strong {
+  color: var(--danger);
+}
+
+@media (max-width: 700px) {
+  .review-header-main {
+    flex-direction: column;
+  }
+
+  .review-header-actions {
+    justify-content: flex-start;
+  }
+
+  .review-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .review-header-card {
+    padding: 15px;
+  }
+
+  .review-stat-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .review-stat {
+    padding: 9px;
+  }
+
+  .review-stat strong {
+    font-size: 17px;
+  }
+}
+
+
+/* =========================================================
+   MAGNUS COACH â€” BELOW BOARD / READABLE MODE
+   ========================================================= */
+
+.magnus-coach-wrap {
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:14px;
+  min-height:108px;
+  margin-bottom:10px;
+}
+
+.magnus-coach-visual {
+  position:relative;
+  flex:0 0 88px;
+  width:88px;
+  height:104px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  overflow:visible;
+}
+
+.magnus-coach-character {
+  width:88px;
+  height:104px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+}
+
+.magnus-coach-character img[data-magnus-image] {
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  object-position:center bottom;
+  user-select:none;
+  -webkit-user-drag:none;
+}
+
+.magnus-coach-status {
+  position:absolute;
+  left:50%;
+  bottom:-2px;
+  transform:translateX(-50%);
+  padding:3px 9px;
+  border-radius:999px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  color:var(--text);
+  font-size:11px;
+  font-weight:700;
+  line-height:1.2;
+  text-transform:capitalize;
+  white-space:nowrap;
+  box-shadow:0 2px 8px rgba(0,0,0,.18);
+}
+
+.magnus-coach-message {
+  flex:1 1 auto;
+  min-width:0;
+  padding:11px 13px;
+  border-radius:10px;
+  background:var(--panel2);
+  border:1px solid var(--line);
+}
+
+.magnus-coach-message-label {
+  margin-bottom:5px;
+  color:var(--accent);
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+}
+
+.magnus-coach-message-text {
+  color:var(--text);
+  font-size:14px;
+  font-weight:500;
+  line-height:1.55;
+  min-height:22px;
+}
+
+.magnus-coach-message-text strong {
+  font-weight:800;
+}
+
+.magnus-coach-message .magnus-keyword {
+  display:inline-block;
+  margin:0 3px 2px 0;
+  padding:2px 7px;
+  border-radius:6px;
+  background:color-mix(in srgb,var(--accent) 15%,transparent);
+  color:var(--text);
+  font-size:12px;
+  font-weight:800;
+}
+
+.magnus-coach-visual.magnus-reacting {
+  animation:magnus-ui-react 520ms cubic-bezier(.2,.8,.2,1);
+}
+
+.magnus-coach-visual.magnus-talking
+.magnus-coach-character {
+  animation:magnus-ui-talk 620ms ease-in-out infinite;
+}
+
+@keyframes magnus-ui-react {
+  0% {
+    transform:translateY(0) scale(1);
+  }
+
+  35% {
+    transform:translateY(-5px) scale(1.035);
+  }
+
+  65% {
+    transform:translateY(1px) scale(.995);
+  }
+
+  100% {
+    transform:translateY(0) scale(1);
+  }
+}
+
+@keyframes magnus-ui-talk {
+  0%,100% {
+    transform:translateY(0);
+  }
+
+  50% {
+    transform:translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .magnus-coach-visual.magnus-reacting,
+  .magnus-coach-visual.magnus-talking
+  .magnus-coach-character {
+    animation:none !important;
+  }
+}
+
+@media (max-width:760px) {
+  .magnus-coach-wrap {
+    gap:9px;
+  }
+
+  .magnus-coach-visual {
+    flex-basis:72px;
+    width:72px;
+    height:88px;
+  }
+
+  .magnus-coach-character {
+    width:72px;
+    height:88px;
+  }
+
+  .magnus-coach-message-text {
+    font-size:13px;
+  }
+}
+
+/* =========================================================
+   MAGNUS COACH â€” SIDE OF ANALYZE BOARD
+   ========================================================= */
+
+/*
+ * The Magnus block itself becomes a compact side panel.
+ * The chess board dimensions are NOT modified.
+ */
+
+.magnus-coach-wrap {
+  width:210px;
+  min-width:210px;
+  max-width:210px;
+
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+
+  gap:6px;
+
+  padding:12px 10px;
+
+  border-radius:12px;
+
+  background:var(--panel2);
+  border:1px solid var(--line);
+
+  min-height:260px;
+}
+
+.magnus-coach-visual {
+  position:relative;
+
+  width:145px;
+  height:175px;
+
+  flex:0 0 175px;
+
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+
+  overflow:visible;
+}
+
+.magnus-coach-character {
+  width:145px;
+  height:175px;
+
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+}
+
+.magnus-coach-character img[data-magnus-image] {
+  display:block;
+
+  width:100%;
+  height:100%;
+
+  object-fit:contain;
+  object-position:center bottom;
+
+  user-select:none;
+  -webkit-user-drag:none;
+}
+
+.magnus-coach-status {
+  position:absolute;
+
+  left:50%;
+  bottom:0;
+
+  transform:translateX(-50%);
+
+  padding:4px 10px;
+
+  border-radius:999px;
+
+  background:var(--panel);
+  border:1px solid var(--line);
+
+  color:var(--text);
+
+  font-size:11px;
+  font-weight:800;
+
+  line-height:1.2;
+
+  text-transform:capitalize;
+
+  white-space:nowrap;
+
+  box-shadow:0 3px 10px rgba(0,0,0,.22);
+}
+
+.magnus-coach-message {
+  width:100%;
+  box-sizing:border-box;
+
+  padding:10px 11px;
+
+  border-radius:9px;
+
+  background:var(--panel);
+  border:1px solid var(--line);
+}
+
+.magnus-coach-message-label {
+  margin-bottom:5px;
+
+  color:var(--accent);
+
+  font-size:11px;
+  font-weight:900;
+
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
+.magnus-coach-message-text {
+  color:var(--text);
+
+  font-size:13px;
+  font-weight:500;
+
+  line-height:1.5;
+
+  min-height:40px;
+}
+
+.magnus-coach-message-text strong {
+  font-weight:800;
+}
+
+.magnus-keyword {
+  display:inline-block;
+
+  margin:2px 3px 2px 0;
+  padding:2px 6px;
+
+  border-radius:5px;
+
+  background:color-mix(
+    in srgb,
+    var(--accent) 15%,
+    transparent
+  );
+
+  color:var(--text);
+
+  font-size:11px;
+  font-weight:800;
+}
+
+/*
+ * Reaction animation.
+ */
+
+.magnus-coach-visual.magnus-reacting {
+  animation:
+    magnus-ui-react
+    520ms
+    cubic-bezier(.2,.8,.2,1);
+}
+
+.magnus-coach-visual.magnus-talking
+.magnus-coach-character {
+  animation:
+    magnus-ui-talk
+    620ms
+    ease-in-out
+    infinite;
+}
+
+@keyframes magnus-ui-react {
+
+  0% {
+    transform:translateY(0) scale(1);
+  }
+
+  35% {
+    transform:translateY(-5px) scale(1.035);
+  }
+
+  65% {
+    transform:translateY(1px) scale(.995);
+  }
+
+  100% {
+    transform:translateY(0) scale(1);
+  }
+
+}
+
+@keyframes magnus-ui-talk {
+
+  0%,100% {
+    transform:translateY(0);
+  }
+
+  50% {
+    transform:translateY(-2px);
+  }
+
+}
+
+@media (prefers-reduced-motion:reduce) {
+
+  .magnus-coach-visual.magnus-reacting,
+  .magnus-coach-visual.magnus-talking
+  .magnus-coach-character {
+
+    animation:none !important;
+
+  }
+
+}
+
+/* =========================================================
+   COACH CORE â€” READABLE ANALYSIS TEXT
+   ========================================================= */
+
+.magnus-coach-message {
+  color:var(--text);
+}
+
+.coach-text-block {
+  margin-top:10px;
+}
+
+.coach-text-block:first-child {
+  margin-top:0;
+}
+
+.coach-text-label {
+  margin-bottom:3px;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+
+.coach-text-value {
+  color:var(--text);
+  font-size:13px;
+  line-height:1.52;
+  font-weight:500;
+}
+
+.coach-text-emphasis {
+  font-size:14px;
+  font-weight:750;
+}
+
+
+/* =========================================================
+   CHESSMATE COACH CORE
+   ========================================================= */
+
+.magnus-coach-message {
+  flex:1;
+  min-width:0;
+  padding:12px 14px;
+  border:1px solid rgba(127,127,127,.18);
+  border-radius:14px;
+  background:rgba(127,127,127,.055);
+  overflow:hidden;
+}
+
+.magnus-coach-message-label {
+  margin-bottom:7px;
+  font-size:10px;
+  line-height:1.2;
+  font-weight:850;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  opacity:.72;
+}
+
+.magnus-coach-message-body {
+  min-width:0;
+}
+
+.coach-core-section {
+  margin-top:9px;
+}
+
+.coach-core-section:first-child {
+  margin-top:0;
+}
+
+.coach-core-label {
+  margin-bottom:2px;
+  font-size:9px;
+  line-height:1.2;
+  font-weight:850;
+  letter-spacing:.075em;
+  text-transform:uppercase;
+  opacity:.58;
+}
+
+.coach-core-value {
+  font-size:13px;
+  line-height:1.48;
+  font-weight:500;
+}
+
+.coach-core-headline .coach-core-value {
+  font-size:15px;
+  line-height:1.38;
+  font-weight:780;
+}
+
+.coach-core-move .coach-core-value,
+.coach-core-better .coach-core-value {
+  font-weight:800;
+  letter-spacing:.015em;
+}
+
+.coach-core-tactical {
+  padding:8px 10px;
+  border-left:3px solid currentColor;
+  border-radius:6px;
+  background:rgba(127,127,127,.07);
+}
+
+.coach-core-tactical .coach-core-value {
+  font-weight:650;
+}
+
+.coach-core-better {
+  padding:8px 10px;
+  border-radius:8px;
+  background:rgba(127,127,127,.09);
+}
+
+.coach-core-lesson {
+  margin-top:12px;
+  padding-top:9px;
+  border-top:1px solid rgba(127,127,127,.16);
+}
+
+.coach-core-lesson .coach-core-value {
+  font-weight:650;
+}
+
+#movelist .coach-move-active {
+  position:relative;
+  border-radius:8px;
+  outline:2px solid currentColor;
+  outline-offset:-2px;
+  background:rgba(127,127,127,.12);
+  box-shadow:0 0 0 3px rgba(127,127,127,.06);
+  transform:translateX(2px);
+  transition:
+    background .18s ease,
+    transform .18s ease,
+    box-shadow .18s ease;
+}
+
+#movelist .coach-move-active::before {
+  content:"";
+  position:absolute;
+  left:0;
+  top:20%;
+  bottom:20%;
+  width:3px;
+  border-radius:3px;
+  background:currentColor;
+}
+
+@media (max-width:700px) {
+  .magnus-coach-message {
+    padding:10px 11px;
+  }
+
+  .coach-core-value {
+    font-size:12px;
+  }
+
+  .coach-core-headline .coach-core-value {
+    font-size:14px;
+  }
+}
+
+
+/* =========================================================
+   WHOLE-GAME COACH REVIEW
+   ========================================================= */
+
+.game-coach-block {
+  margin-top:12px;
+}
+
+.game-coach-block:first-child {
+  margin-top:0;
+}
+
+.game-coach-label,
+.game-coach-section-title {
+  margin-bottom:5px;
+  font-size:10px;
+  font-weight:850;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  opacity:.6;
+}
+
+.game-coach-value {
+  font-size:13px;
+  line-height:1.5;
+}
+
+.game-coach-overview {
+  padding:10px 12px;
+  border-radius:10px;
+  background:rgba(127,127,127,.07);
+}
+
+.game-coach-section-title {
+  margin-top:16px;
+}
+
+.game-coach-turning-point {
+  display:block;
+  width:100%;
+  margin-top:8px;
+  padding:10px 11px;
+  border:1px solid rgba(127,127,127,.16);
+  border-radius:10px;
+  background:transparent;
+  color:inherit;
+  text-align:left;
+  cursor:pointer;
+  transition:
+    transform .16s ease,
+    background .16s ease,
+    border-color .16s ease;
+}
+
+.game-coach-turning-point:hover {
+  transform:translateX(2px);
+  background:rgba(127,127,127,.07);
+}
+
+.game-coach-turning-top {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.game-coach-turning-top strong {
+  font-size:13px;
+}
+
+.game-coach-verdict {
+  flex:none;
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  opacity:.7;
+}
+
+.game-coach-turning-reason {
+  margin-top:5px;
+  font-size:12px;
+  line-height:1.45;
+}
+
+.game-coach-turning-better {
+  margin-top:7px;
+  font-size:12px;
+  font-weight:750;
+}
+
+.game-coach-tactical {
+  padding:9px 11px;
+  border-left:3px solid currentColor;
+  background:rgba(127,127,127,.06);
+  border-radius:6px;
+}
+
+.game-coach-lessons {
+  margin:7px 0 0;
+  padding-left:20px;
+}
+
+.game-coach-lessons li {
+  margin:7px 0;
+  font-size:12px;
+  line-height:1.48;
+}
+
+
+/* Dedicated terminal-result card for checkmate. */
+.game-coach-checkmate {
+  margin-top: 12px;
+  border: 1px solid rgba(133, 190, 91, .55);
+  border-left: 4px solid #85be5b;
+  border-radius: 10px;
+  background: linear-gradient(
+    110deg,
+    rgba(133, 190, 91, .15),
+    rgba(133, 190, 91, .045)
+  );
+}
+
+.game-coach-checkmate:hover {
+  border-color: rgba(133, 190, 91, .8);
+  background: linear-gradient(
+    110deg,
+    rgba(133, 190, 91, .22),
+    rgba(133, 190, 91, .07)
+  );
+}
+
+.game-coach-checkmate .game-coach-verdict {
+  color: #a6dc7b;
+  opacity: 1;
+  letter-spacing: .035em;
+}
+
+.game-coach-checkmate .game-coach-turning-reason {
+  line-height: 1.55;
+}
+/* ============================================================
+   CHESSMATE UNIFIED THEME OVERRIDE 2026-10
+   Chess.com-inspired palette; original ChessMate branding.
+   ============================================================ */
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #262522;
+  --panel: #302e2b;
+  --panel2: #3a3835;
+  --panel-2: #3a3835;
+  --panel-3: #403e3b;
+
+  --ink: #f0f0ee;
+  --text: #f0f0ee;
+  --text-strong: #ffffff;
+  --muted: #aaa9a6;
+  --muted-2: #85837e;
+
+  --line: #45433f;
+  --border: #45433f;
+  --border-soft: #3b3936;
+  --border-strong: #57544f;
+
+  --accent: #81b64c;
+  --accent-ink: #a4d477;
+  --accent-hover: #91c957;
+  --accent-soft: rgba(129, 182, 76, .14);
+
+  --success: #81b64c;
+  --success-soft: rgba(129, 182, 76, .13);
+  --danger: #d15b55;
+  --danger-soft: rgba(209, 91, 85, .13);
+
+  --sq-l: #eeeed2;
+  --sq-d: #769656;
+  --board-light: #eeeed2;
+  --board-dark: #769656;
+
+  --shadow: 0 2px 8px rgba(0, 0, 0, .18);
+  --serif: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f1f1ed;
+  --panel: #ffffff;
+  --panel2: #f6f6f2;
+  --panel-2: #f6f6f2;
+  --panel-3: #eaeae4;
+
+  --ink: #262522;
+  --text: #262522;
+  --text-strong: #171714;
+  --muted: #6b6a64;
+  --muted-2: #85837e;
+
+  --line: #deded7;
+  --border: #deded7;
+  --border-soft: #e8e8e2;
+  --border-strong: #c8c8c0;
+
+  --accent: #629924;
+  --accent-ink: #47751a;
+  --accent-hover: #54851e;
+  --accent-soft: rgba(98, 153, 36, .10);
+
+  --success: #629924;
+  --success-soft: rgba(98, 153, 36, .10);
+  --danger: #c6534d;
+  --danger-soft: rgba(198, 83, 77, .10);
+
+  --sq-l: #eeeed2;
+  --sq-d: #769656;
+  --board-light: #eeeed2;
+  --board-dark: #769656;
+
+  --shadow: 0 2px 8px rgba(25, 25, 20, .07);
+}
+
+/* Keep the existing interface components on the same type scale. */
+html,
+body {
+  background: var(--bg);
+  color: var(--text, var(--ink));
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.card,
+.review-panel {
+  background-color: var(--panel);
+  border-color: var(--border, var(--line));
+}
+
+button,
+select,
+input,
+textarea {
+  font: inherit;
+}
+
+button.primary,
+#reviewBtn.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
+  font-weight: 700;
+}
+
+button.primary:hover:not(:disabled),
+#reviewBtn.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Standard green board palette. Keep selection/highlight logic intact. */
+.board .sq.l,
+.board .sq.light {
+  background-color: var(--sq-l);
+}
+
+.board .sq.d,
+.board .sq.dark {
+  background-color: var(--sq-d);
+}
+
+/* Consistent, restrained surface treatment across the main app. */
+.card {
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.modebar .modetab.on {
+  border-color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* END CHESSMATE UNIFIED THEME OVERRIDE 2026-10 */
+
+/* ============================================================
+   CHESSMATE READABILITY PATCH 2026-10
+   Improve contrast and text sizing without changing app logic.
+   ============================================================ */
+
+:root,
+html[data-theme="dark"] {
+  --text: #f4f4f1;
+  --ink: #f4f4f1;
+  --text-strong: #ffffff;
+  --muted: #c4c3bd;
+  --muted-2: #aaa9a2;
+  --line: #55534e;
+  --border: #55534e;
+}
+
+html[data-theme="light"] {
+  --text: #242420;
+  --ink: #242420;
+  --text-strong: #171713;
+  --muted: #56564f;
+  --muted-2: #686860;
+  --line: #d0d0c8;
+  --border: #d0d0c8;
+}
+
+/* A consistent readable base size. */
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text, var(--ink));
+}
+
+/* Keep common content readable without forcing sizes on chess pieces. */
+p,
+li,
+label,
+input,
+select,
+textarea,
+button,
+summary,
+td,
+th {
+  line-height: 1.45;
+}
+
+input,
+select,
+textarea {
+  color: var(--text, var(--ink));
+  background-color: var(--panel, #302e2b);
+  border-color: var(--border, var(--line));
+  font-size: 14px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted, #c4c3bd);
+  opacity: 1;
+}
+
+button {
+  color: var(--text, var(--ink));
+  font-size: 14px;
+}
+
+button:disabled {
+  opacity: .72;
+  cursor: not-allowed;
+}
+
+/* Common secondary-text patterns. */
+.muted,
+.dim,
+.subtle,
+.hint,
+.help,
+.description,
+.meta,
+.live-meta,
+.review-header-meta,
+.review-kicker,
+.sectlabel,
+.lab {
+  color: var(--muted, #c4c3bd);
+}
+
+/* Small labels should remain legible on desktop and laptop screens. */
+.sectlabel,
+.review-kicker,
+.lab,
+.live-meta,
+.review-header-meta {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+small,
+.small,
+.caption,
+.hint,
+.help {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Clearer panel hierarchy. */
+.card,
+.review-panel {
+  color: var(--text, var(--ink));
+}
+
+.card h1,
+.card h2,
+.card h3,
+.card h4,
+.review-header-copy h2,
+.secttitle {
+  color: var(--text-strong, #ffffff);
+  line-height: 1.3;
+}
+
+a {
+  text-underline-offset: 3px;
+}
+
+a:not(.modetab) {
+  text-decoration-thickness: 1px;
+}
+
+:focus-visible {
+  outline-color: var(--accent, #81b64c);
+}
+
+/* Make review status and progress information easier to scan. */
+.progress,
+.ptxt,
+.accstrip,
+.review-stat span,
+.review-stat strong {
+  line-height: 1.5;
+}
+
+.review-stat span {
+  font-size: 11px;
+  color: var(--muted, #c4c3bd);
+}
+
+.review-stat strong {
+  font-size: 20px;
+  color: var(--text-strong, #ffffff);
+}
+
+/* Keep board coordinates legible without changing board geometry. */
+.coordinates,
+.coordinate,
+.coords {
+  font-weight: 600;
+}
+
+/* END CHESSMATE READABILITY PATCH 2026-10 */
+
+/* ============================================================
+   CHESSMATE RESPONSIVE LAYOUT SYSTEM 2026-10
+   Unified sizing, spacing, controls and workspace.
+   ============================================================ */
+
+/* Use the available desktop viewport instead of a narrow column. */
+.wrap {
+  width: min(1600px, calc(100% - 40px)) !important;
+  max-width: 1600px !important;
+  margin-inline: auto !important;
+  padding: 18px 0 40px !important;
+  box-sizing: border-box;
+}
+
+.topbar,
+.modebar,
+.playsetup,
+.import,
+.editor,
+.grid {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.12fr) minmax(340px, .88fr) !important;
+  align-items: start;
+  gap: 16px !important;
+}
+
+.leftcol,
+.rightcol {
+  display: flex !important;
+  flex-direction: column;
+  min-width: 0;
+  gap: 12px !important;
+}
+
+/* Shared typography. Preserve chess notation and board piece sizing. */
+html,
+body,
+button,
+input,
+select,
+textarea {
+  font-family: Inter, "Segoe UI", Arial, sans-serif !important;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+body {
+  font-size: 15px !important;
+}
+
+h1, h2, h3, h4,
+.topbar .brand-title,
+.review-header-copy h2 {
+  font-family: Inter, "Segoe UI", Arial, sans-serif !important;
+  letter-spacing: -.02em;
+  line-height: 1.25;
+}
+
+.topbar h1,
+.topbar .brand-title {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.card {
+  min-width: 0;
+  border-radius: 12px !important;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+/* One predictable control height and text weight across the app. */
+button,
+select,
+input:not([type="checkbox"]):not([type="radio"]),
+textarea {
+  box-sizing: border-box;
+  min-height: 38px;
+  border-radius: 8px;
+  font-size: 14px !important;
+  font-weight: 600;
+}
+
+button {
+  padding: 9px 14px;
+  line-height: 1.25;
+  cursor: pointer;
+}
+
+button.primary,
+button.primary.big,
+#reviewBtn.primary {
+  min-height: 40px;
+  padding: 10px 16px;
+  background: #81b64c !important;
+  border: 1px solid #81b64c !important;
+  color: #fff !important;
+  font-weight: 750;
+}
+
+button.primary:hover:not(:disabled),
+#reviewBtn.primary:hover:not(:disabled) {
+  background: #91c957 !important;
+  border-color: #91c957 !important;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}
+
+/* Consistent navigation hit areas and active state. */
+.modebar {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 4px !important;
+  padding: 6px;
+  border-radius: 12px;
+}
+
+.modetab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 16px !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.modetab.on {
+  background: #81b64c !important;
+  border-color: #81b64c !important;
+  color: #fff !important;
+}
+
+/* Inputs and secondary text must remain readable. */
+label,
+.lab,
+.sectlabel,
+.review-header-meta,
+.hint,
+.help,
+small,
+.dim,
+.muted {
+  line-height: 1.5;
+}
+
+.lab,
+.sectlabel {
+  font-size: 12px !important;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+input,
+select,
+textarea {
+  padding: 9px 11px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  opacity: 1;
+  color: var(--muted, #c4c3bd);
+}
+
+/* Review controls and move list use the same spacing rhythm. */
+.rev-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.depthrow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.depthrow select {
+  flex: 1;
+  min-width: 130px;
+}
+
+.movelist,
+.livelines {
+  min-width: 0;
+  line-height: 1.6;
+}
+
+.review-header-card,
+.review-stat-grid,
+.review-stat {
+  min-width: 0;
+}
+
+/* Keep the existing green-and-cream board palette consistent. */
+:root,
+html[data-theme="dark"],
+html[data-theme="light"] {
+  --board-light: #eeeed2;
+  --board-dark: #769656;
+  --sq-l: #eeeed2;
+  --sq-d: #769656;
+}
+
+/* Responsive tablet and mobile layout. */
+@media (max-width: 1000px) {
+  .wrap {
+    width: calc(100% - 28px) !important;
+  }
+
+  .grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .leftcol,
+  .rightcol {
+    display: flex !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .wrap {
+    width: calc(100% - 20px) !important;
+    padding-top: 10px !important;
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+  }
+
+  .modebar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .modetab {
+    min-width: 0;
+    padding: 9px 6px !important;
+    font-size: 12px !important;
+  }
+
+  .card {
+    padding: 12px;
+  }
+
+  button {
+    padding-inline: 11px;
+  }
+}
+
+/* END CHESSMATE RESPONSIVE LAYOUT SYSTEM 2026-10 */
+
+/* ============================================================
+   CHESSMATE FINAL READABILITY AND BRAND POLISH 2026-10
+   ============================================================ */
+
+:root {
+  --cm-green: #81b64c;
+  --cm-green-hover: #91c957;
+  --cm-text-muted: #c4c3bd;
+  --cm-border: #55534e;
+}
+
+/* Text-only wordmark. Do not alter header layout or controls. */
+.topbar .brand-title,
+.topbar h1 {
+  font-family: Inter, "Segoe UI", Arial, sans-serif !important;
+  font-size: 24px !important;
+  font-weight: 800 !important;
+  line-height: 1.2;
+  letter-spacing: -.035em;
+}
+
+/* A consistent baseline across existing app pages. */
+body {
+  font-size: 15px !important;
+  line-height: 1.55 !important;
+}
+
+p, li, label, summary, td, th {
+  line-height: 1.55;
+}
+
+/* Improve small labels without enlarging the chessboard itself. */
+.sectlabel,
+.lab,
+.review-kicker,
+.review-header-meta,
+.live-meta,
+.tagline,
+.hint,
+.help,
+small,
+.small,
+.caption,
+.dim,
+.muted,
+.description {
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  color: var(--cm-text-muted);
+}
+
+/* Make navigation labels easy to read and consistently weighted. */
+.modetab {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+}
+
+/* Shared button dimensions, typography and interaction feedback. */
+button,
+input,
+select,
+textarea {
+  font-family: Inter, "Segoe UI", Arial, sans-serif !important;
+}
+
+button {
+  min-height: 38px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-size: 14px !important;
+  font-weight: 650;
+  line-height: 1.3;
+  transition: background-color .14s ease,
+              border-color .14s ease,
+              box-shadow .14s ease;
+}
+
+button.primary,
+button.primary.big,
+#reviewBtn.primary {
+  background: var(--cm-green) !important;
+  border-color: var(--cm-green) !important;
+  color: #fff !important;
+  font-weight: 750 !important;
+}
+
+button.primary:hover:not(:disabled),
+button.primary.big:hover:not(:disabled),
+#reviewBtn.primary:hover:not(:disabled) {
+  background: var(--cm-green-hover) !important;
+  border-color: var(--cm-green-hover) !important;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--cm-green) !important;
+  outline-offset: 2px;
+}
+
+/* Inputs should not rely on faint placeholders to convey instructions. */
+input,
+select,
+textarea {
+  font-size: 14px !important;
+  line-height: 1.45;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--cm-text-muted) !important;
+  opacity: 1 !important;
+}
+
+/* Improve move notation and engine principal variations. */
+.movelist,
+.livelines,
+.livelines *,
+.review-stat,
+.review-stat span {
+  line-height: 1.6;
+}
+
+.livelines,
+.movelist {
+  font-size: 13px;
+}
+
+/* Keep board geometry and the Book Reader layout unchanged. */
+:root,
+html[data-theme="dark"],
+html[data-theme="light"] {
+  --board-light: #eeeed2;
+  --board-dark: #769656;
+  --sq-l: #eeeed2;
+  --sq-d: #769656;
+}
+
+/* Avoid motion for users who request reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* END CHESSMATE FINAL READABILITY AND BRAND POLISH 2026-10 */
+
+
+/* =========================================================
+   CHESSMATE â€” PLAY MAGNUS STRENGTH DROPDOWN
+   ========================================================= */
+
+#botElo {
+    appearance: none;
+    -webkit-appearance: none;
+
+    min-width: 290px;
+    min-height: 50px;
+    padding: 0 46px 0 18px;
+
+    color: #f4f4ef;
+    background-color: #292a27;
+
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: 13px;
+
+    font: inherit;
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: 0.1px;
+
+    cursor: pointer;
+    outline: none;
+
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.035),
+        0 3px 10px rgba(0, 0, 0, 0.16);
+
+    transition:
+        border-color 160ms ease,
+        box-shadow 160ms ease,
+        background-color 160ms ease;
+}
+
+#botElo:hover {
+    background-color: #30312d;
+    border-color: rgba(139, 195, 85, 0.65);
+}
+
+#botElo:focus,
+#botElo:focus-visible {
+    border-color: #8bc34a;
+    box-shadow:
+        0 0 0 3px rgba(139, 195, 85, 0.19),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+#botElo option {
+    color: #f2f2ed;
+    background-color: #292a27;
+    font-size: 15px;
+    font-weight: 500;
+    padding: 10px 12px;
+}
+
+#botElo option:checked {
+    color: #ffffff;
+    background-color: #527d35;
+}
+
+#botElo option:disabled {
+    color: #a3a39b;
+}
+
+@media (max-width: 640px) {
+    #botElo {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+}
+
+/* End Play Magnus dropdown styling */
+
+/* =========================================================
+   CHESSMATE MAIN SCREEN VIEWPORT FIT PATCH 2026-10
+   Main-screen spacing and viewport fit only.
+   Does not modify JavaScript or chess functionality.
+   ========================================================= */
+
+html {
+    scroll-padding-top: 12px;
+}
+
+body {
+    overflow-x: clip;
+}
+
+.wrap {
+    width: min(1760px, calc(100% - 32px)) !important;
+    max-width: 1760px !important;
+    padding-top: 10px !important;
+    padding-bottom: 20px !important;
+    margin-inline: auto !important;
+    box-sizing: border-box;
+}
+
+.topbar {
+    margin-bottom: 10px !important;
+    gap: 10px !important;
+}
+
+.modebar {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-bottom: 10px !important;
+    padding: 4px !important;
+    gap: 4px !important;
+    box-sizing: border-box;
+}
+
+.modebar .modetab {
+    min-width: 0;
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+}
+
+.playsetup {
+    margin-bottom: 10px !important;
+    padding: 10px 14px !important;
+}
+
+.setuprow {
+    gap: 12px !important;
+}
+
+.setupnote {
+    margin-top: 8px !important;
+    line-height: 1.45 !important;
+}
+
+.import {
+    margin-bottom: 10px !important;
+    padding: 12px !important;
+}
+
+.grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.12fr) minmax(320px, .88fr) !important;
+    align-items: start;
+    gap: 12px !important;
+    min-width: 0;
+}
+
+.leftcol,
+.rightcol {
+    min-width: 0;
+    gap: 10px !important;
+}
+
+.grid > *,
+.leftcol > *,
+.rightcol > * {
+    min-width: 0;
+}
+
+.card {
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.boardcard {
+    padding: 12px !important;
+}
+
+.ghead {
+    margin-bottom: 8px !important;
+}
+
+.boardrow {
+    align-items: stretch;
+    gap: 7px !important;
+    min-width: 0;
+}
+
+.chessmate-board-shell {
+    max-width: min(100%, calc(100dvh - 280px));
+    min-width: 0;
+    margin-inline: auto;
+    box-sizing: border-box;
+}
+
+.chessmate-board-shell > .board {
+    max-width: 100%;
+    min-width: 0;
+}
+
+.playbar {
+    margin-top: 7px !important;
+    padding: 7px 9px !important;
+    gap: 7px !important;
+}
+
+.rightcol > .card {
+    padding: 12px !important;
+}
+
+.movelist {
+    max-height: min(44vh, 390px) !important;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+@media (max-width: 1050px) {
+    .wrap {
+        width: calc(100% - 24px) !important;
+    }
+
+    .grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .chessmate-board-shell {
+        max-width: min(100%, calc(100dvh - 250px));
+    }
+
+    .movelist {
+        max-height: 42vh !important;
+    }
+}
+
+@media (max-width: 600px) {
+    .wrap {
+        width: calc(100% - 16px) !important;
+    }
+
+    .modebar {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .modebar .modetab {
+        padding: 8px 5px !important;
+        font-size: 12px !important;
+        text-align: center;
+    }
+
+    .boardcard,
+    .rightcol > .card {
+        padding: 10px !important;
+    }
+
+    .chessmate-board-shell {
+        max-width: 100%;
+    }
+}
+
+@media (min-width: 1051px) and (max-height: 760px) {
+    .wrap {
+        padding-top: 6px !important;
+        padding-bottom: 12px !important;
+    }
+
+    .topbar {
+        margin-bottom: 7px !important;
+    }
+
+    .modebar {
+        margin-bottom: 7px !important;
+    }
+
+    .chessmate-board-shell {
+        max-width: min(100%, calc(100dvh - 240px));
+    }
+
+    .movelist {
+        max-height: 38vh !important;
+    }
+}
+
+/* END CHESSMATE MAIN SCREEN VIEWPORT FIT PATCH */
+
+
+/* CHESSMATE THREE-COLUMN WORKSPACE PATCH */
+@media (min-width: 1051px) {
+  .grid {
+    display: grid !important;
+    grid-template-columns:
+      minmax(0, 1.35fr)
+      minmax(245px, .72fr)
+      minmax(285px, .88fr) !important;
+    align-items: start;
+    gap: 12px !important;
+  }
+
+  .grid > .leftcol,
+  .grid > .rightcol {
+    display: contents !important;
+  }
+
+  .grid .leftcol > .boardcard {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .grid .rightcol > .movescard {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    position: sticky;
+    top: 10px;
+  }
+
+  .grid > .coach {
+    grid-column: 3;
+    grid-row: 1;
+    min-width: 0;
+    max-height: min(78vh, 820px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .grid .rightcol > .movescard .movelist {
+    max-height: min(68vh, 680px) !important;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .grid .leftcol > .review-header-card,
+  .grid .leftcol > .graphcard,
+  .grid .leftcol > .legendcard,
+  .grid .rightcol > .review,
+  .grid .rightcol > .live,
+  .grid .rightcol > .explorer,
+  .grid .rightcol > .phases,
+  .grid .rightcol > .summary,
+  .grid .rightcol > .advice {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .grid > .coach .magnus-coach-message-body {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 1050px) {
+  .grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .grid > .leftcol,
+  .grid > .rightcol {
+    display: contents !important;
+  }
+
+  .grid .leftcol > *,
+  .grid .rightcol > *,
+  .grid > .coach {
+    grid-column: 1;
+    grid-row: auto;
+    position: static;
+    max-height: none;
+    min-width: 0;
+  }
+}
+/* END CHESSMATE THREE-COLUMN WORKSPACE PATCH */
+/* CHESSMATE_PERMANENT_THREE_COLUMN_LAYOUT */
+@media (min-width: 760px) {
+  .grid {
+    display: grid !important;
+    grid-template-columns: minmax(0,1.4fr) minmax(155px,.72fr) minmax(190px,.9fr) !important;
+    align-items: start !important;
+    gap: 12px !important;
+  }
+  .grid > .leftcol, .grid > .rightcol {
+    display: contents !important;
+  }
+  .grid > .boardcard {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    width: auto !important;
+    min-width: 0 !important;
+  }
+  .grid > .movescard {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    position: sticky;
+    top: 10px;
+  }
+  .grid > .coach {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-height: 75vh;
+    overflow-y: auto;
+  }
+  .grid > .movescard .movelist {
+    max-height: 65vh !important;
+    overflow-y: auto !important;
+  }
+  .grid .review-header-card,
+  .grid .review,
+  .grid .live,
+  .grid .explorer,
+  .grid .phases,
+  .grid .summary,
+  .grid .advice,
+  .grid .graphcard,
+  .grid .legendcard {
+    grid-column: 1 / -1 !important;
+    min-width: 0;
+  }
+}
+@media (max-width: 759px) {
+  .grid {
+    display: grid !important;
+    grid-template-columns: minmax(0,1fr) !important;
+  }
+  .grid > .leftcol, .grid > .rightcol {
+    display: contents !important;
+  }
+  .grid > .boardcard, .grid > .movescard, .grid > .coach {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+    position: static !important;
+    max-height: none;
+    min-width: 0 !important;
+  }
+}
+/* END CHESSMATE_PERMANENT_THREE_COLUMN_LAYOUT */
+
+/* CHESSMATE_MOVE_LIST_VISIBILITY_FIX */
+@media (min-width: 760px) {
+  .grid > .movescard {
+    align-self: start !important;
+    min-width: 0 !important;
+    max-height: 75vh !important;
+    overflow: hidden !important;
+  }
+
+  .grid > .movescard .movelist {
+    display: block !important;
+    min-height: 48px !important;
+    max-height: 65vh !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+  }
+
+  .grid > .movescard .mvrow {
+    display: grid !important;
+    grid-template-columns: 36px minmax(0, 1fr) minmax(0, 1fr) !important;
+  }
+
+  .grid > .movescard .mv {
+    min-width: 0 !important;
+  }
+}
+/* END CHESSMATE_MOVE_LIST_VISIBILITY_FIX */
+
+/* CHESSMATE_UNIFIED_REVIEW_UI */
+/* Hide tuning controls and live engine output; retain review engine logic. */
+.depthrow,
+.legendcard {
+    display: none !important;
+}
+/* END CHESSMATE_UNIFIED_REVIEW_UI */
+/* CHESSMATE_MOVES_INDEPENDENT_SCROLL_FIX */
+@media (min-width: 760px) {
+  .grid > .movescard {
+    position: static !important;
+    align-self: start !important;
+    min-height: 0 !important;
+    max-height: 75vh !important;
+    overflow: hidden !important;
+  }
+
+  .grid > .movescard .movelist {
+    min-height: 0 !important;
+    max-height: 62vh !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .grid > .coach {
+    align-self: start !important;
+    max-height: 75vh !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+  }
+}
+/* END CHESSMATE_MOVES_INDEPENDENT_SCROLL_FIX */
+
+
+
+/* CHESSMATE_RETURN_TO_GAME_LAYOUT_FIX */
+#exploreBar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 0 !important;
+  height: auto;
+  padding: 8px !important;
+  margin: 8px 0 !important;
+  gap: 0;
+}
+
+#exploreBar.hidden {
+  display: none !important;
+}
+
+#exploreBar #exploreTxt {
+  display: none !important;
+}
+
+#exploreBar button {
+  margin: 0 !important;
+}
+
+/* CHESSMATE_IMPORT_UI_LAYOUT_FIX */
+.gamelist {
+  max-height: 210px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+.gamelist .grow {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 8px 10px;
+}
+
+.gamelist .gmain {
+  min-width: 0;
+}
+
+.gamelist .gp {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.45;
+}
+
+.gamelist .game-review-btn {
+  align-self: center;
+  margin: 0;
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.acctrow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: stretch;
+}
+
+.acctrow #userInput {
+  width: 100%;
+  min-width: 0;
+}
+
+.import-grid,
+.imp-pgn {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .acctrow {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .acctrow #siteSel {
+    grid-column: 1 / -1;
+  }
+
+  .gamelist .grow {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+
+  .gamelist .game-review-btn {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+/* CHESSMATE_GAME_ROW_METADATA_SPACING */
+.gamelist .grow {
+  grid-template-columns: 26px minmax(0, 1fr) minmax(108px, auto) auto;
+  column-gap: 14px;
+}
+
+.gamelist .gmain {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.gamelist .game-review-btn {
+  grid-column: 4;
+  grid-row: 1;
+  justify-self: end;
+  position: relative;
+  z-index: 1;
+  margin-left: 4px;
+}
+
+.gamelist .gmeta,
+.gamelist .gside,
+.gamelist .ginfo {
+  min-width: 108px;
+  text-align: right;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .gamelist .grow {
+    grid-template-columns: 26px minmax(0, 1fr) auto;
+    column-gap: 8px;
+  }
+
+  .gamelist .game-review-btn {
+    grid-column: 3;
+    grid-row: 1;
+    margin-left: 0;
+    padding: 5px 7px;
+    font-size: 11px;
+  }
+
+  .gamelist .gmeta,
+  .gamelist .gside,
+  .gamelist .ginfo {
+    min-width: 0;
+    white-space: normal;
+  }
+}
+
+/* CHESSMATE_UI_IMPLEMENTATION_V1 */
+.grid {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.grid > .boardcard,
+.grid > .movescard,
+.grid > .coach {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.grid > .boardcard {
+  width: 100%;
+}
+
+.grid > .movescard {
+  min-width: 0;
+}
+
+.grid > .movescard .movelist {
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.grid > .coach {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+}
+
+.grid .review-header-card,
+.grid .review,
+.grid .live,
+.grid .explorer,
+.grid .phases,
+.grid .summary,
+.grid .advice,
+.grid .graphcard,
+.grid .legendcard {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.acctrow {
+  display: grid;
+  grid-template-columns: minmax(115px, auto) minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 8px;
+}
+
+#siteSel,
+#userInput,
+#loadUser {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.grow {
+  grid-template-columns: 22px minmax(0, 1fr) minmax(88px, auto);
+  gap: 10px;
+  min-width: 0;
+}
+
+.gmain {
+  min-width: 0;
+}
+
+.gp {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.grow > :last-child {
+  justify-self: end;
+  text-align: right;
+  min-width: 0;
+}
+
+.game-review-btn {
+  margin-top: 0;
+  font-size: 12px;
+  padding: 7px 10px;
+}
+
+.explorebar {
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.explorebar #returnGame {
+  margin: 0;
+}
+
+@media (max-width: 1050px) {
+  .acctrow {
+    grid-template-columns: minmax(100px, auto) minmax(0, 1fr);
+  }
+
+  #loadUser {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 759px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .acctrow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #loadUser {
+    grid-column: auto;
+    justify-self: stretch;
+  }
+
+  .grow {
+    grid-template-columns: 22px minmax(0, 1fr);
+  }
+
+  .grow > :last-child {
+    grid-column: 2;
+    justify-self: start;
+    text-align: left;
+  }
+}
+/* END CHESSMATE_UI_IMPLEMENTATION_V1 */
+/* CHESSMATE_MOVE_CLASS_VISUALS_V1 */
+.mv:not(.active)[data-class="brilliant"] {
+  background: color-mix(in srgb, var(--brilliant) 13%, transparent);
+}
+.mv:not(.active)[data-class="great"] {
+  background: color-mix(in srgb, var(--great) 12%, transparent);
+}
+.mv:not(.active)[data-class="best"] {
+  background: color-mix(in srgb, var(--best) 12%, transparent);
+}
+.mv:not(.active)[data-class="excellent"] {
+  background: color-mix(in srgb, var(--excellent) 10%, transparent);
+}
+.mv:not(.active)[data-class="inaccuracy"] {
+  background: color-mix(in srgb, var(--inacc) 12%, transparent);
+}
+.mv:not(.active)[data-class="mistake"] {
+  background: color-mix(in srgb, var(--mistake) 13%, transparent);
+}
+.mv:not(.active)[data-class="blunder"] {
+  background: color-mix(in srgb, var(--blunder) 13%, transparent);
+}
+.mv:not(.active)[data-class="book"] {
+  background: color-mix(in srgb, var(--book) 10%, transparent);
+}
+.mv:not(.active)[data-class="good"] {
+  background: color-mix(in srgb, var(--good) 9%, transparent);
+}
+.mv .cg {
+  font-weight: 900;
+  letter-spacing: .01em;
+}
+.mv.active {
+  position: relative;
+  z-index: 1;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+/* END CHESSMATE_MOVE_CLASS_VISUALS_V1 */
+/* CHESSMATE_EXACT_IMAGE_BADGES_V2 */
+.badge.image-badge {
+  padding: 0 !important;
+  background: transparent !important;
+  overflow: visible;
+}
+.badge.image-badge img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+  pointer-events: none;
+  user-select: none;
+}
+.mv .move-class-badge {
+  display: block;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  border-radius: 50%;
+  margin-left: auto;
+  align-self: center;
+  pointer-events: none;
+  user-select: none;
+}
+/* CHESSMATE_MOVE_QUALITY_PASTELS_V2 */
+.mv:not(.active)[data-class="brilliant"] { background: #c9f3e7 !important; }
+.mv:not(.active)[data-class="great"]     { background: #d4eafa !important; }
+.mv:not(.active)[data-class="best"]      { background: #dff2c9 !important; }
+.mv:not(.active)[data-class="excellent"] { background: #e4f0d8 !important; }
+.mv:not(.active)[data-class="good"]      { background: #e8eddf !important; }
+.mv:not(.active)[data-class="book"]      { background: #e2eafa !important; }
+.mv:not(.active)[data-class="inaccuracy"]{ background: #fff0bd !important; }
+.mv:not(.active)[data-class="mistake"]   { background: #ffe0b8 !important; }
+.mv:not(.active)[data-class="blunder"]   { background: #ffd8d4 !important; }
+
+/* Keep the image badge visible during the temporary move-quality flourish. */
+.fl-glyph.image-fl-glyph img {
+  display: block;
+  width: min(44px, 68%);
+  height: min(44px, 68%);
+  object-fit: contain;
+  border-radius: 50%;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.2));
+}
+
+/* CHESSMATE_CHESSCOM_STYLE_V3
+   Restore neutral move cells; use classification color on notation and badge only. */
+
+.mv,
+.mv:not(.active)[data-class],
+.mv:not(.active)[data-class="brilliant"],
+.mv:not(.active)[data-class="great"],
+.mv:not(.active)[data-class="best"],
+.mv:not(.active)[data-class="excellent"],
+.mv:not(.active)[data-class="good"],
+.mv:not(.active)[data-class="book"],
+.mv:not(.active)[data-class="inaccuracy"],
+.mv:not(.active)[data-class="mistake"],
+.mv:not(.active)[data-class="blunder"] {
+  background: transparent !important;
+}
+
+/* Keep the active-move outline, but remove any classification fill. */
+.mv.active,
+.mv.active[data-class] {
+  background: rgba(255,255,255,.045) !important;
+}
+
+/* Classification colors on the SAN notation, not the whole move box. */
+.mv[data-class="brilliant"] .san { color: #65c8c0 !important; }
+.mv[data-class="great"]     .san { color: #72bde8 !important; }
+.mv[data-class="best"]      .san { color: #8fca55 !important; }
+.mv[data-class="excellent"] .san { color: #a7c98c !important; }
+.mv[data-class="good"]      .san { color: #b5c7a5 !important; }
+.mv[data-class="book"]      .san { color: #91b8e8 !important; }
+.mv[data-class="inaccuracy"] .san { color: #e7c65e !important; }
+.mv[data-class="mistake"]   .san { color: #edaa58 !important; }
+.mv[data-class="blunder"]   .san { color: #ef7777 !important; }
+
+/* Keep evaluations readable and neutral, like the reference UI. */
+.mv .ev {
+  color: #b9b8b3 !important;
+}
+
+/* Remove the dark halo/border around the board's circular image badge. */
+.badge.image-badge {
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  background: transparent !important;
+  overflow: visible !important;
+}
+
+.badge.image-badge img {
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  filter: none !important;
+  background: transparent !important;
+  object-fit: contain;
+}
+
+/* The temporary flourish should use the badge artwork without a dark halo. */
+.fl-glyph.image-fl-glyph img {
+  filter: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+/* END CHESSMATE_CHESSCOM_STYLE_V3 */
+
+/* CHESSMATE_PIECE_BADGE_FIT_V1 */
+.badge.image-badge {
+  box-sizing: border-box !important;
+  padding: 1px !important;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  overflow: visible !important;
+  line-height: 0 !important;
+}
+
+.badge.image-badge img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  box-sizing: border-box !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  pointer-events: none !important;
+  user-select: none !important;
+}
+/* END CHESSMATE_PIECE_BADGE_FIT_V1 */
+
+
+/* CHESSMATE_MOVE_SINGLE_LINE_ALIGNMENT_V1 */
+.mv {
+  display: flex !important;
+  flex-flow: row nowrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+}
+
+.mv .move-class-badge {
+  display: block !important;
+  flex: 0 0 20px !important;
+  width: 20px !important;
+  height: 20px !important;
+  margin: 0 !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+.mv .san {
+  display: block !important;
+  order: 1 !important;
+  flex: 0 1 auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  text-align: left !important;
+}
+
+.mv .ev {
+  display: block !important;
+  order: 2 !important;
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+  white-space: nowrap !important;
+  text-align: right !important;
+}
+
+/* END CHESSMATE_MOVE_SINGLE_LINE_ALIGNMENT_V1 */
+
+
+/* CHESSMATE_LARGER_PIECE_BADGE_V1 */
+.badge.image-badge {
+  width: min(27px, 7.5cqw) !important;
+  height: min(27px, 7.5cqw) !important;
+  top: 1px !important;
+  right: 1px !important;
+  z-index: 5 !important;
+}
+
+.badge.image-badge img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+/* END CHESSMATE_LARGER_PIECE_BADGE_V1 */
+
+
+/* ===== CHESSMATE_LAYOUT_PATCH_V1 ===== */
+/* Desktop: board | move list | Magnus Coach.
+   The HTML script moves these three cards directly into .grid. */
+@media (min-width: 901px) {
+  .grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.3fr) minmax(190px, .72fr) minmax(220px, .88fr) !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+    min-width: 0;
+  }
+
+  .grid > .leftcol,
+  .grid > .rightcol {
+    display: contents !important;
+  }
+
+  .grid > .boardcard {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    align-self: start;
+    min-width: 0;
+  }
+
+  .grid > .movescard {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    align-self: stretch;
+    min-width: 0;
+    max-height: none !important;
+    height: auto !important;
+    overflow: hidden !important;
+  }
+
+  .grid > .coach {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    align-self: stretch !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    box-sizing: border-box !important;
+    min-width: 0;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin-top: 0 !important;
+    padding: 9px !important;
+  }
+
+  /* Analysis cards flow beneath the three primary columns. */
+  .grid > .leftcol > *,
+  .grid > .rightcol > * {
+    grid-column: 1 / -1 !important;
+    min-width: 0;
+  }
+
+  /* The actual move list is #movelist, not #moveNotation. */
+  .grid > .movescard #movelist {
+    display: block;
+    height: clamp(260px, calc(100vh - 300px), 540px) !important;
+    max-height: none !important;
+    min-height: 0;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  /* Keep the coach content compact without hiding its controls. */
+  .grid > .coach .magnus-coach-wrap {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    gap: 6px !important;
+  }
+
+  .grid > .coach .magnus-coach-visual {
+    max-width: 100%;
+  }
+
+  .grid > .coach .magnus-coach-message,
+  .grid > .coach .assess-note {
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Tablet/mobile: stack the main cards; preserve local move-list scrolling. */
+@media (max-width: 900px) {
+  .grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .grid > .leftcol,
+  .grid > .rightcol {
+    display: contents !important;
+  }
+
+  .grid > .boardcard,
+  .grid > .movescard,
+  .grid > .coach,
+  .grid > .leftcol > *,
+  .grid > .rightcol > * {
+    grid-column: 1 / -1 !important;
+    grid-row: auto !important;
+    min-width: 0;
+  }
+
+  .grid > .movescard #movelist {
+    height: auto !important;
+    max-height: 55vh !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+  }
+
+  .grid > .coach {
+    max-height: none !important;
+    overflow: visible !important;
+    margin-top: 0 !important;
+  }
+}
+/* ===== END CHESSMATE_LAYOUT_PATCH_V1 ===== */
+
+/* ===== CHESSMATE_AUTHORITATIVE_LAYOUT_V2 ===== */
+/* Single authoritative desktop layout; preserve existing component styling. */
+@media (min-width: 1051px) {
+  .grid {
+    display: grid !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    grid-template-columns: minmax(0, 1.25fr) minmax(230px, .72fr) minmax(250px, .88fr) !important;
+    align-items: start !important;
+    gap: 14px !important;
+  }
+
+  .grid > .leftcol,
+  .grid > .rightcol {
+    display: contents !important;
+  }
+
+  .grid > .boardcard {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .grid > .movescard {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: hidden !important;
+    align-self: start !important;
+  }
+
+  .grid > .coach {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    align-self: start !important;
+    margin: 0 !important;
+  }
+
+  /* All other cards become full-width rows after the three primary cards. */
+  .grid > .leftcol > *,
+  .grid > .rightcol > * {
+    grid-column: 1 / -1 !important;
+    grid-row: auto !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Actual move-list element is #movelist. */
+  .grid > .movescard #movelist {
+    display: block !important;
+    height: clamp(280px, calc(100vh - 300px), 600px) !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .grid > .coach .magnus-coach-wrap {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .grid > .coach img {
+    max-width: 100%;
+  }
+
+  .grid > .coach .magnus-coach-message,
+  .grid > .coach .assess-note {
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Laptop and tablet: retain the three primary columns when space allows. */
+@media (min-width: 760px) and (max-width: 1050px) {
+  .grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.2fr) minmax(180px, .8fr) !important;
+    gap: 12px !important;
+  }
+
+  .grid > .leftcol,
+  .grid > .rightcol {
+    display: contents !important;
+  }
+
+  .grid > .boardcard {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+  }
+
+  .grid > .movescard {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    min-width: 0 !important;
+  }
+
+  .grid > .coach {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    min-width: 0 !important;
+  }
+
+  .grid > .leftcol > *,
+  .grid > .rightcol > * {
+    grid-column: 1 / -1 !important;
+    grid-row: auto !important;
+    min-width: 0 !important;
+  }
+
+  .grid > .movescard #movelist {
+    max-height: 55vh !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* Mobile: stack cards and retain independent move-list scrolling. */
+@media (max-width: 759px) {
+  .grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .grid > .leftcol,
+  .grid > .rightcol {
+    display: contents !important;
+  }
+
+  .grid > .boardcard,
+  .grid > .movescard,
+  .grid > .coach,
+  .grid > .leftcol > *,
+  .grid > .rightcol > * {
+    grid-column: 1 / -1 !important;
+    grid-row: auto !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .grid > .movescard #movelist {
+    height: auto !important;
+    max-height: 55vh !important;
+    overflow-y: auto !important;
+  }
+}
+/* ===== END CHESSMATE_AUTHORITATIVE_LAYOUT_V2 ===== */
+
+
+/* ===== CHESSMATE_TABLET_THREE_COLUMN_FIX_V1 ===== */
+@media (min-width: 760px) and (max-width: 1050px) {
+  .grid {
+    display: grid !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    grid-template-columns: minmax(0, 1.1fr) minmax(155px, .65fr) minmax(190px, .8fr) !important;
+    align-items: start !important;
+    gap: 10px !important;
+  }
+
+  .grid > .leftcol,
+  .grid > .rightcol {
+    display: contents !important;
+  }
+
+  .grid > .boardcard {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .grid > .movescard {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .grid > .coach {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .grid > .leftcol > *,
+  .grid > .rightcol > * {
+    grid-column: 1 / -1 !important;
+    grid-row: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .grid > .movescard #movelist {
+    height: clamp(250px, calc(100vh - 300px), 540px) !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+  }
+
+  .grid > .coach .magnus-coach-wrap {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+}
+/* ===== END CHESSMATE_TABLET_THREE_COLUMN_FIX_V1 ===== */
+
+
+/* ===== CHESSMATE_ANALYSIS_DIRECT_GRID_ITEMS_V1 ===== */
+.grid > #reviewHeaderCard,
+.grid > .review,
+.grid > .live,
+.grid > .explorer,
+.grid > .phases,
+.grid > .summary,
+.grid > .advice,
+.grid > #graphCard,
+.grid > #timeCard,
+.grid > .legendcard {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.grid > .boardcard,
+.grid > .movescard,
+.grid > .coach {
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.grid > .movescard #movelist {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 759px) {
+  .grid > .boardcard,
+  .grid > .movescard,
+  .grid > .coach {
+    grid-column: 1 / -1 !important;
+    grid-row: auto !important;
+    width: 100% !important;
+  }
+
+  .grid > .movescard #movelist {
+    max-height: 55vh !important;
+  }
+}
+/* ===== END CHESSMATE_ANALYSIS_DIRECT_GRID_ITEMS_V1 ===== */
+
+
+
+/* CHESSMATE_PLAYER_COMPARE_V1 */
+.player-compare-card {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 9px;
+  margin: 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.player-compare-card.hidden { display: none !important; }
+.pc-players {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+.pc-player {
+  min-width: 0;
+  text-align: center;
+  padding: 5px 3px;
+  border-radius: 6px;
+  background: rgba(255,255,255,.035);
+}
+.pc-player + .pc-player {
+  border-left: 1px solid var(--border, rgba(255,255,255,.14));
+}
+.pc-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 700;
+}
+.pc-accuracy {
+  font-size: 20px;
+  line-height: 1.25;
+  font-weight: 800;
+  margin-top: 3px;
+}
+.pc-rating {
+  font-size: 10px;
+  opacity: .8;
+  margin-top: 2px;
+}
+.pc-move-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+.pc-stat {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 4px;
+  padding: 6px 5px;
+  border: 1px solid var(--border, rgba(255,255,255,.14));
+  border-radius: 6px;
+}
+.pc-stat img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  grid-row: 1 / span 2;
+}
+.pc-stat span {
+  min-width: 0;
+  font-size: 9px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.pc-stat strong {
+  font-size: 13px;
+  line-height: 1.15;
+}
+@media (max-width: 480px) {
+  .player-compare-card { padding: 7px; gap: 6px; }
+  .pc-accuracy { font-size: 17px; }
+  .pc-stat { grid-template-columns: 15px minmax(0, 1fr); padding: 5px 3px; }
+  .pc-stat img { width: 15px; height: 15px; }
+  .pc-stat span { font-size: 8px; }
+}
+
+/* CHESSMATE_PLAYER_COMPARE_LAYOUT_V2 */
+@media (min-width: 1051px) {
+  .grid > #playerCompareCard {
+    grid-column: 3 !important;
+    grid-row: 2 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    margin-top: 0 !important;
+  }
+
+  .grid > .coach {
+    grid-column: 3 !important;
+    grid-row: 3 !important;
+  }
+}
+/* END CHESSMATE_PLAYER_COMPARE_LAYOUT_V2 */
+
+/* CHESSMATE_LIFT_MAGNUS_SIDE */
+@media (min-width: 1051px) {
+  .grid > .coach {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    align-self: start !important;
+    margin-top: 0 !important;
+  }
+
+  .grid > #playerCompareCard {
+    grid-column: 3 !important;
+    grid-row: 2 !important;
+    align-self: start !important;
+    margin-top: 0 !important;
+  }
+}
+/* END CHESSMATE_LIFT_MAGNUS_SIDE */
+
+
+/* CHESSMATE_WORKSPACE_RATING_FINAL_V1 */
+@media (min-width: 1051px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 0.6fr) minmax(260px, 0.72fr) !important;
+    align-items: start !important;
+  }
+
+  .grid > .boardcard {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    align-self: start !important;
+  }
+
+  .grid > .movescard {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    align-self: stretch !important;
+  }
+
+  .grid > .coach {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    align-self: start !important;
+    margin-top: 0 !important;
+    min-width: 0 !important;
+  }
+
+  .grid > #playerCompareCard {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    align-self: start !important;
+    margin: 0 0 8px 0 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Reserve a vertical stack in the third column:
+     player comparison first, Magnus Coach immediately below. */
+  .grid > #playerCompareCard { order: 1; }
+  .grid > .coach { order: 2; }
+
+  .grid > .movescard #movelist {
+    max-height: none !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+  }
+
+  /* These metrics are now presented in the player comparison card. */
+  .grid > #reviewHeaderCard {
+    display: none !important;
+  }
+
+  .grid > #accStrip,
+  .grid > .accstrip {
+    display: none !important;
+  }
+}
+/* END CHESSMATE_WORKSPACE_RATING_FINAL_V1 */
+
+/* CHESSMATE_HOME_ANALYSIS_LAYOUT_FIX_V1 */
+@media (min-width: 1051px) {
+  .grid > .boardcard {
+    min-width: 0;
+  }
+
+  .grid > .movescard {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    height: var(--cm-home-board-height, auto) !important;
+    max-height: var(--cm-home-board-height, none) !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  .grid > .movescard > .sectlabel {
+    flex: 0 0 auto;
+  }
+
+  .grid > .movescard #movelist {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+  }
+
+  .grid > .coach #playerCompareCard {
+    width: 100% !important;
+    margin: 10px 0 0 !important;
+    box-sizing: border-box !important;
+  }
+}
+
+@media (max-width: 1050px) {
+  .grid > .movescard {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .grid > .movescard #movelist {
+    min-height: 0;
+    max-height: 55vh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+  }
+
+  .grid > .coach #playerCompareCard {
+    width: 100%;
+    margin-top: 10px;
+    box-sizing: border-box;
+  }
+}
+/* END CHESSMATE_HOME_ANALYSIS_LAYOUT_FIX_V1 */
+
+/* CHESSMATE_HOME_STATS_READABILITY_V1 */
+.cm-home-opening {
+  padding: 0 10px 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.cm-home-opening.hidden,
+#cmHomeOpening:empty {
+  display: none !important;
+}
+.grid > .coach .player-compare-card .pc-move-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+.grid > .coach .player-compare-card .pc-stat {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  padding: 9px 7px;
+  text-align: center;
+  justify-items: center;
+  min-height: 60px;
+}
+.grid > .coach .player-compare-card .pc-stat img {
+  grid-row: auto;
+  width: 22px;
+  height: 22px;
+}
+.grid > .coach .player-compare-card .pc-stat span {
+  font-size: 12px;
+  line-height: 1.25;
+  overflow-wrap: normal;
+}
+.grid > .coach .player-compare-card .pc-stat strong {
+  font-size: 19px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+@media (max-width: 480px) {
+  .grid > .coach .player-compare-card .pc-stat {
+    padding: 6px 3px;
+    min-height: 52px;
+  }
+  .grid > .coach .player-compare-card .pc-stat span {
+    font-size: 10px;
+  }
+  .grid > .coach .player-compare-card .pc-stat strong {
+    font-size: 16px;
+  }
+}
+/* END CHESSMATE_HOME_STATS_READABILITY_V1 */
+/* CHESSMATE_HOME_DUPLICATE_SUMMARY_GUARD_V1 */
+/* Home metrics are shown in the player comparison card instead. */
+.grid > #reviewHeaderCard,
+.grid > #accStrip,
+.grid > .accstrip {
+  display: none !important;
+}
+/* END CHESSMATE_HOME_DUPLICATE_SUMMARY_GUARD_V1 */
+/* CHESSMATE_REMOVE_SHARE_AND_DUPLICATE_SUMMARY_V1 */
+/* Remove the share panel and duplicate summary from the main workspace. */
+.grid > #reviewHeaderCard,
+.grid > #accStrip,
+.grid > .accstrip {
+  display: none !important;
+}
+
+/* Keep player comparison stats readable in the Magnus Coach column. */
+.coach #playerCompareCard {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.coach #playerCompareCard .pc-stat {
+  min-width: 0;
+}
+
+.coach #playerCompareCard .pc-stat span {
+  overflow-wrap: anywhere;
+}
+
+/* Make Good and Blunder read as clear move-category badges. */
+.coach #playerCompareCard .pc-stat:has(#pcGood) span,
+.coach #playerCompareCard .pc-stat:has(#pcBlunders) span {
+  font-weight: 700;
+}
+
+.coach #playerCompareCard .pc-stat:has(#pcGood) span {
+  color: #8bc34a;
+}
+
+.coach #playerCompareCard .pc-stat:has(#pcBlunders) span {
+  color: #ff7777;
+}
+/* END CHESSMATE_REMOVE_SHARE_AND_DUPLICATE_SUMMARY_V1 */
+/* CHESSMATE_LAYOUT_FIX_CURRENT_V2 */
+/* Hide the duplicate accuracy / provisional-rating strip wherever it is nested. */
+#accStrip,
+.accstrip {
+  display: none !important;
+}
+
+/* Keep the player statistics inside Magnus Coach responsive. */
+.grid > .coach #playerCompareCard {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  align-self: stretch !important;
+  margin: 10px 0 0 !important;
+}
+
+.grid > .coach .pc-move-stats {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 7px !important;
+}
+
+.grid > .coach .pc-stat {
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  overflow-wrap: anywhere;
+}
+
+.grid > .coach .pc-stat img {
+  max-width: 100%;
+  object-fit: contain;
+}
+
+/* Avoid content forcing the workspace wider at browser zoom levels. */
+.grid > .boardcard,
+.grid > .movescard,
+.grid > .coach {
+  min-width: 0 !important;
+}
+
+.grid > .coach .magnus-coach-wrap {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* END CHESSMATE_LAYOUT_FIX_CURRENT_V2 */
+
+/* ChessMate: align Magnus Coach panel with the notation panel */
+@media (min-width: 1000px) {
+  .analysis-layout,
+  .review-layout,
+  .game-analysis-layout {
+    align-items: stretch;
+  }
+
+  .magnus-coach,
+  #magnusCoach,
+  .coach-panel,
+  .analysis-coach {
+    height: 100%;
+    min-height: 100%;
+    align-self: stretch;
+    box-sizing: border-box;
+  }
+}
+
+/* CHESSMATE_PLAYER_COMPARE_BOTTOM_ALIGN_V2 */
+@media (min-width: 1051px) {
+  .grid > #playerCompareCard {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    align-self: start !important;
+    height: var(--cm-home-board-height, auto) !important;
+    min-height: 0 !important;
+    max-height: var(--cm-home-board-height, none) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+}
+/* END CHESSMATE_PLAYER_COMPARE_BOTTOM_ALIGN_V2 */
+
+/* ==========================================================
+   CHESSMATE GLASS REPORT UI V1
+   CSS only: preserve HTML IDs, JS hooks and chart rendering.
+   ========================================================== */
+
+:root {
+  --cm-glass-bg: rgba(20, 29, 31, 0.78);
+  --cm-glass-border: rgba(164, 206, 177, 0.19);
+  --cm-glass-highlight: rgba(208, 255, 219, 0.055);
+  --cm-glass-green: #a3e6a5;
+  --cm-glass-muted: #aebfba;
+  --cm-glass-shadow: 0 16px 38px rgba(0, 0, 0, 0.23);
+}
+
+/* Report cards: retain existing DOM and visibility behavior. */
+.rightcol > .card.phases,
+.rightcol > .card.summary,
+.rightcol > .card.advice,
+.rightcol > .card.explorer,
+.rightcol > .card.live,
+.rightcol > .card.review,
+#playerCompareCard {
+  position: relative;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--cm-glass-border);
+  border-radius: 17px;
+  background:
+    linear-gradient(135deg, var(--cm-glass-highlight), transparent 62%),
+    var(--cm-glass-bg);
+  box-shadow: var(--cm-glass-shadow), inset 0 1px 0 rgba(255,255,255,.045);
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+  transition:
+    border-color .28s ease,
+    box-shadow .32s ease,
+    transform .32s cubic-bezier(.2,.8,.2,1),
+    background-color .28s ease;
+}
+
+.rightcol > .card.phases:hover,
+.rightcol > .card.summary:hover,
+.rightcol > .card.advice:hover,
+.rightcol > .card.explorer:hover,
+.rightcol > .card.live:hover,
+#playerCompareCard:hover {
+  border-color: rgba(163, 230, 165, .42);
+  box-shadow:
+    0 20px 46px rgba(0, 0, 0, .3),
+    0 0 22px rgba(109, 205, 131, .075),
+    inset 0 1px 0 rgba(255,255,255,.075);
+  transform: translateY(-3px);
+}
+
+/* Make report headings consistent and legible. */
+.rightcol .sectlabel,
+#playerCompareCard .sectlabel {
+  color: #dcebe0;
+  font-size: .78rem;
+  font-weight: 750;
+  letter-spacing: .095em;
+  line-height: 1.45;
+  text-transform: uppercase;
+}
+
+.rightcol .phasenote,
+.rightcol .ratingnote,
+.rightcol .motifnote,
+.rightcol .coachbody {
+  color: var(--cm-glass-muted);
+  font-size: .9rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.rightcol .chead {
+  color: #d3e3d7;
+  font-size: .82rem;
+  font-weight: 700;
+}
+
+.rightcol .counts,
+.rightcol .phaserows {
+  min-width: 0;
+}
+
+/* Compact player comparison and move-quality tiles. */
+#playerCompareCard {
+  overflow: hidden;
+}
+
+#playerCompareCard .pc-players {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+#playerCompareCard .pc-player {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 13px;
+  background: rgba(255,255,255,.035);
+}
+
+#playerCompareCard .pc-name {
+  color: #e8f1ea;
+  font-size: .88rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+#playerCompareCard .pc-accuracy {
+  margin-top: 5px;
+  color: var(--cm-glass-green);
+  font-size: clamp(1.35rem, 2vw, 1.9rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+#playerCompareCard .pc-rating {
+  margin-top: 4px;
+  color: var(--cm-glass-muted);
+  font-size: .8rem;
+}
+
+#playerCompareCard .pc-move-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 13px;
+}
+
+#playerCompareCard .pc-stat {
+  display: grid;
+  grid-template-columns: 25px minmax(0, 1fr);
+  align-items: center;
+  gap: 5px 7px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 12px;
+  background: rgba(255,255,255,.035);
+  transition: background .25s ease, border-color .25s ease, transform .25s ease;
+}
+
+#playerCompareCard .pc-stat:hover {
+  background: rgba(163,230,165,.075);
+  border-color: rgba(163,230,165,.28);
+  transform: translateY(-2px);
+}
+
+#playerCompareCard .pc-stat img {
+  width: 23px;
+  height: 23px;
+  object-fit: contain;
+}
+
+#playerCompareCard .pc-stat span {
+  min-width: 0;
+  color: #c6d4ca;
+  font-size: .75rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+#playerCompareCard .pc-stat strong {
+  grid-column: 2;
+  color: #f0f7f1;
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Entrance motion only applies when cards become visible. */
+@keyframes cmGlassEnter {
+  from {
+    opacity: 0;
+    transform: translateY(13px) scale(.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.rightcol > .card.phases:not(.hidden),
+.rightcol > .card.summary:not(.hidden),
+.rightcol > .card.advice:not(.hidden),
+.rightcol > .card.explorer:not(.hidden),
+#playerCompareCard:not(.hidden) {
+  animation: cmGlassEnter .55s cubic-bezier(.2,.75,.25,1) both;
+}
+
+.rightcol > .card.summary:not(.hidden) { animation-delay: .06s; }
+.rightcol > .card.advice:not(.hidden) { animation-delay: .12s; }
+
+/* Tablet and phone layouts. */
+@media (max-width: 900px) {
+  #playerCompareCard .pc-move-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  #playerCompareCard .pc-stat {
+    padding: 8px;
+  }
+}
+
+@media (max-width: 560px) {
+  #playerCompareCard .pc-move-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #playerCompareCard .pc-stat span {
+    font-size: .78rem;
+  }
+
+  .rightcol .phasenote,
+  .rightcol .ratingnote,
+  .rightcol .motifnote,
+  .rightcol .coachbody {
+    font-size: .86rem;
+  }
+}
+
+/* Accessibility: disable decorative motion when requested by the OS. */
+@media (prefers-reduced-motion: reduce) {
+  .rightcol > .card,
+  #playerCompareCard,
+  #playerCompareCard .pc-stat {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+
+  .rightcol > .card:hover,
+  #playerCompareCard:hover,
+  #playerCompareCard .pc-stat:hover {
+    transform: none !important;
+  }
+}
+
+/* END CHESSMATE GLASS REPORT UI V1 */
+/* CHESSMATE_REPORT_GRID_FIX_V2
+   Final override: compact report cards, without changing graph logic. */
+@media (min-width: 1051px) {
+  .grid > .rightcol > .phases,
+  .grid > .rightcol > .summary,
+  .grid > .rightcol > .advice,
+  .grid > .rightcol > .explorer,
+  .grid > .rightcol > .live,
+  .grid > .rightcol > #playerCompareCard,
+  .grid > .phases,
+  .grid > .summary,
+  .grid > .advice,
+  .grid > .explorer,
+  .grid > .live,
+  .grid > #playerCompareCard {
+    grid-column: auto !important;
+    grid-row: auto !important;
+    align-self: stretch !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .grid > .rightcol > .phases,
+  .grid > .rightcol > .summary,
+  .grid > .rightcol > .advice,
+  .grid > .rightcol > .explorer,
+  .grid > .rightcol > #playerCompareCard,
+  .grid > .phases,
+  .grid > .summary,
+  .grid > .advice,
+  .grid > .explorer,
+  .grid > #playerCompareCard {
+    padding: 12px !important;
+  }
+
+  .grid > .rightcol > .phases,
+  .grid > .rightcol > .summary,
+  .grid > .rightcol > .advice,
+  .grid > .rightcol > .explorer,
+  .grid > .rightcol > #playerCompareCard,
+  .grid > .phases,
+  .grid > .summary,
+  .grid > .advice,
+  .grid > .explorer,
+  .grid > #playerCompareCard {
+    overflow-wrap: anywhere;
+  }
+
+  .grid > .rightcol > .phases .sectlabel,
+  .grid > .rightcol > .summary .sectlabel,
+  .grid > .rightcol > .advice .sectlabel,
+  .grid > .phases .sectlabel,
+  .grid > .summary .sectlabel,
+  .grid > .advice .sectlabel {
+    padding-top: 4px;
+  }
+}
+
+/* Keep the mobile/tablet stacking rules intact. */
+@media (max-width: 1050px) {
+  .grid > .rightcol > .phases,
+  .grid > .rightcol > .summary,
+  .grid > .rightcol > .advice,
+  .grid > .rightcol > .explorer,
+  .grid > .rightcol > .live,
+  .grid > .rightcol > #playerCompareCard,
+  .grid > .phases,
+  .grid > .summary,
+  .grid > .advice,
+  .grid > .explorer,
+  .grid > .live,
+  .grid > #playerCompareCard {
+    grid-column: 1 / -1 !important;
+    grid-row: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+/* END CHESSMATE_REPORT_GRID_FIX_V2 */
+
+/* ===== CHESSMATE_GLASS_HEADINGS_V1 ===== */
+
+/* Glass surface: report cards, engine panel, moves, and graphs. */
+.rightcol > .review,
+.rightcol > .movescard,
+.rightcol > .live,
+.rightcol > .explorer,
+.rightcol > .phases,
+.rightcol > .summary,
+.rightcol > .advice,
+#playerCompareCard,
+#graphCard,
+#timeCard {
+  background:
+    linear-gradient(135deg,
+      rgba(255,255,255,.065),
+      rgba(255,255,255,.018) 58%),
+    rgba(34,36,39,.84) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  border-radius: 16px !important;
+  box-shadow:
+    0 10px 28px rgba(0,0,0,.20),
+    inset 0 1px 0 rgba(255,255,255,.055) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition:
+    border-color .22s ease,
+    box-shadow .22s ease,
+    background .22s ease;
+}
+
+.rightcol > .review:hover,
+.rightcol > .movescard:hover,
+.rightcol > .live:hover,
+.rightcol > .phases:hover,
+.rightcol > .summary:hover,
+.rightcol > .advice:hover,
+#playerCompareCard:hover,
+#graphCard:hover,
+#timeCard:hover {
+  border-color: rgba(153,211,111,.34) !important;
+  box-shadow:
+    0 14px 32px rgba(0,0,0,.25),
+    inset 0 1px 0 rgba(255,255,255,.07) !important;
+}
+
+/* Report headings: a clear accent rail and stronger contrast. */
+.rightcol > .card > .sectlabel,
+#playerCompareCard > .sectlabel,
+#graphCard > .sectlabel,
+#timeCard > .sectlabel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 3px 0 10px 12px !important;
+  color: #f2f5ee !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  letter-spacing: .13em !important;
+  line-height: 1.5 !important;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255,255,255,.09);
+}
+
+.rightcol > .card > .sectlabel::before,
+#playerCompareCard > .sectlabel::before,
+#graphCard > .sectlabel::before,
+#timeCard > .sectlabel::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #c4f58c, #78b84a);
+  box-shadow: 0 0 12px rgba(151,215,100,.24);
+}
+
+/* Moves / notation heading gets its own visual treatment. */
+.rightcol > .movescard > .sectlabel,
+.grid > .movescard > .sectlabel {
+  margin: 0 0 10px !important;
+  padding: 10px 12px !important;
+  border: 1px solid rgba(161,218,116,.22) !important;
+  border-radius: 10px !important;
+  background: linear-gradient(
+    100deg,
+    rgba(145,202,94,.17),
+    rgba(145,202,94,.045) 72%,
+    rgba(255,255,255,.025)
+  ) !important;
+  color: #d9f6bd !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+  letter-spacing: .16em !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.045);
+}
+
+.rightcol > .movescard > .sectlabel::before,
+.grid > .movescard > .sectlabel::before {
+  content: none !important;
+}
+
+/* Move notation: easier to scan without changing move behavior. */
+.movescard .movelist {
+  color: #e8ece5;
+  line-height: 1.8;
+}
+
+.movescard .mvrow {
+  border-radius: 8px;
+}
+
+.movescard .mvrow:hover {
+  background: rgba(255,255,255,.045);
+}
+
+.movescard .mv {
+  border: 1px solid transparent;
+  border-radius: 7px;
+  transition:
+    background .16s ease,
+    border-color .16s ease;
+}
+
+.movescard .mv:hover {
+  background: rgba(155,213,111,.09);
+  border-color: rgba(155,213,111,.15);
+}
+
+/* Engine-analysis panel: improve evaluation and candidate-line readability. */
+.rightcol > .live .live-head {
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,.09);
+}
+
+.rightcol > .live .live-meta {
+  color: #f2f5ee;
+  font-weight: 750;
+}
+
+.rightcol > .live .livelines {
+  color: #e3e9df;
+  line-height: 1.9;
+}
+
+.rightcol > .live .live-foot {
+  margin-top: 12px;
+  color: #c5cbbf;
+}
+
+/* Readable report body copy and tables. */
+.rightcol > .phases,
+.rightcol > .summary,
+.rightcol > .advice,
+#playerCompareCard,
+#graphCard,
+#timeCard {
+  color: #e5e9e1;
+  line-height: 1.7;
+}
+
+.rightcol > .phases .dim,
+.rightcol > .summary .dim,
+.rightcol > .advice .dim {
+  color: #b9c0b5;
+}
+
+/* Smooth entry when hidden report cards become visible. */
+@media (prefers-reduced-motion: no-preference) {
+  .rightcol > .phases:not(.hidden),
+  .rightcol > .summary:not(.hidden),
+  .rightcol > .advice:not(.hidden),
+  #playerCompareCard:not(.hidden),
+  #graphCard:not(.hidden),
+  #timeCard:not(.hidden) {
+    animation: cmGlassReportReveal .32s ease both;
+  }
+
+  @keyframes cmGlassReportReveal {
+    from {
+      opacity: .72;
+      transform: translateY(5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@media (max-width: 760px) {
+  .rightcol > .card > .sectlabel,
+  #playerCompareCard > .sectlabel,
+  #graphCard > .sectlabel,
+  #timeCard > .sectlabel {
+    font-size: 11px !important;
+    letter-spacing: .1em !important;
+  }
+}
+
+/* ===== END CHESSMATE_GLASS_HEADINGS_V1 ===== */
+
+/* ===== CHESSMATE_PHASE_TABLE_ALIGNMENT_V1 ===== */
+
+/* Reserve the same label column in the W/B header and every data row. */
+#phases .chead {
+  display: grid !important;
+  grid-template-columns: minmax(88px, 1fr) repeat(2, minmax(76px, 88px)) !important;
+  align-items: center !important;
+  column-gap: 8px !important;
+  margin: 0 0 8px !important;
+}
+
+#phases .chead::before {
+  content: "" !important;
+  display: block !important;
+}
+
+#phases .chead span {
+  display: block !important;
+  width: auto !important;
+  min-width: 0 !important;
+  text-align: right !important;
+  color: #dce8d2 !important;
+  font-weight: 800 !important;
+  font-size: 11px !important;
+}
+
+/* Consistent columns: phase name | White | Black. */
+#phases .phaserows {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+#phases .phaserow {
+  display: grid !important;
+  grid-template-columns: minmax(88px, 1fr) repeat(2, minmax(76px, 88px)) !important;
+  align-items: center !important;
+  column-gap: 8px !important;
+  min-width: 0 !important;
+  padding: 7px 8px !important;
+  border: 1px solid rgba(255,255,255,.055) !important;
+  border-radius: 8px !important;
+  background: rgba(255,255,255,.018) !important;
+  font-size: 12px !important;
+}
+
+#phases .phaserow:nth-child(even) {
+  background: rgba(255,255,255,.035) !important;
+}
+
+#phases .phaserow .pl {
+  min-width: 0 !important;
+  color: #cbd2c6 !important;
+  line-height: 1.4 !important;
+  overflow-wrap: normal !important;
+}
+
+#phases .phaserow .pv {
+  display: flex !important;
+  align-items: baseline !important;
+  justify-content: flex-end !important;
+  gap: 5px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  white-space: nowrap !important;
+}
+
+#phases .phaserow .pn {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+  color: #f0f5e9 !important;
+  font-family: var(--mono) !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+#phases .phaserow .pn.dim {
+  color: #9ca596 !important;
+  font-weight: 500 !important;
+}
+
+#phases .phaserow .pc {
+  flex: 0 0 auto !important;
+  min-width: 14px !important;
+  text-align: right !important;
+  color: #aeb8a5 !important;
+  font-size: 10px !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+#phases .phasenote {
+  margin-top: 10px !important;
+  color: #b9c2b1 !important;
+  font-size: 11px !important;
+  line-height: 1.55 !important;
+}
+
+/* Allow the phase table to adapt when its card is narrow. */
+@media (max-width: 440px) {
+  #phases .chead,
+  #phases .phaserow {
+    grid-template-columns: minmax(76px, 1fr) repeat(2, minmax(66px, 76px)) !important;
+    column-gap: 5px !important;
+  }
+
+  #phases .phaserow {
+    padding: 6px 4px !important;
+  }
+
+  #phases .phaserow .pv {
+    gap: 3px !important;
+  }
+
+  #phases .phaserow .pn {
+    font-size: 12px !important;
+  }
+}
+
+/* ===== END CHESSMATE_PHASE_TABLE_ALIGNMENT_V1 ===== */
+
+/* CHESSMATE_PHASE_HEADER_ALIGNMENT_V2 */
+/* Header columns must exactly match the phase data columns. */
+#phases .chead {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 88px 88px !important;
+  column-gap: 8px !important;
+  align-items: center !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 0 8px !important;
+  margin: 0 0 8px !important;
+}
+
+#phases .chead::before {
+  content: "" !important;
+  display: block !important;
+  min-width: 0 !important;
+}
+
+#phases .chead span {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  text-align: right !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Match the header's padding, columns and gaps exactly. */
+#phases .phaserow {
+  grid-template-columns: minmax(0, 1fr) 88px 88px !important;
+  column-gap: 8px !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+  box-sizing: border-box !important;
+}
+
+/* Narrow-card version uses matching header and row dimensions. */
+@media (max-width: 440px) {
+  #phases .chead,
+  #phases .phaserow {
+    grid-template-columns: minmax(0, 1fr) 76px 76px !important;
+    column-gap: 5px !important;
+  }
+}
+/* END CHESSMATE_PHASE_HEADER_ALIGNMENT_V2 */
+
+/* CHESSMATE_PHASE_FINAL_ALIGNMENT_V3 */
+/* Header and rows share the same three-column grid:
+   phase label | White accuracy + count | Black accuracy + count */
+
+#phases .chead {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(92px, 112px) minmax(92px, 112px) !important;
+  column-gap: 8px !important;
+  align-items: center !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 0 8px !important;
+  margin: 0 0 8px !important;
+}
+
+#phases .chead::before {
+  content: "" !important;
+  display: block !important;
+}
+
+#phases .chead span {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  text-align: center !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  color: #d9edc9 !important;
+  font-weight: 800 !important;
+}
+
+#phases .phaserows {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  width: 100% !important;
+}
+
+#phases .phaserow {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(92px, 112px) minmax(92px, 112px) !important;
+  column-gap: 8px !important;
+  align-items: center !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 8px !important;
+}
+
+#phases .phaserow .pl {
+  min-width: 0 !important;
+  white-space: nowrap !important;
+}
+
+#phases .phaserow .pv {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 20px !important;
+  align-items: center !important;
+  justify-content: stretch !important;
+  gap: 4px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  white-space: nowrap !important;
+}
+
+#phases .phaserow .pn {
+  display: block !important;
+  min-width: 0 !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+#phases .phaserow .pc {
+  display: block !important;
+  width: 20px !important;
+  min-width: 20px !important;
+  text-align: right !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+@media (max-width: 440px) {
+  #phases .chead,
+  #phases .phaserow {
+    grid-template-columns: minmax(72px, 1fr) minmax(80px, 96px) minmax(80px, 96px) !important;
+    column-gap: 4px !important;
+  }
+
+  #phases .phaserow {
+    padding: 6px 4px !important;
+  }
+
+  #phases .phaserow .pv {
+    grid-template-columns: minmax(0, 1fr) 16px !important;
+    gap: 2px !important;
+  }
+
+  #phases .phaserow .pc {
+    width: 16px !important;
+    min-width: 16px !important;
+    font-size: 9px !important;
+  }
+
+  #phases .phaserow .pn {
+    font-size: 11px !important;
+  }
+}
+/* END CHESSMATE_PHASE_FINAL_ALIGNMENT_V3 */
+
+
+/* CHESSMATE_MOVE_BREAKDOWN_DUAL_COUNTS_V1 */
+/* Align the category label and both players' counts in the Analyze summary only. */
+#summary .chead,
+#summary .countrow {
+  display: grid !important;
+  grid-template-columns: 18px minmax(0, 1fr) 38px 38px !important;
+  align-items: center !important;
+  column-gap: 8px !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#summary .chead {
+  justify-content: initial !important;
+  margin-bottom: 8px !important;
+  font-size: 10px !important;
+  white-space: nowrap !important;
+}
+
+#summary .chead span {
+  display: block;
+  width: auto !important;
+  min-width: 0;
+  text-align: right;
+  white-space: nowrap !important;
+  font-variant-numeric: tabular-nums;
+}
+
+#summary .chead .count-spacer {
+  display: block;
+}
+
+#summary .chead .count-title {
+  text-align: left;
+  white-space: nowrap !important;
+}
+
+#summary .countrow {
+  gap: 8px !important;
+}
+
+#summary .countrow .cl {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#summary .countrow .cw,
+#summary .countrow .cb {
+  display: block;
+  width: auto !important;
+  min-width: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 440px) {
+  #summary .chead,
+  #summary .countrow {
+    grid-template-columns: 18px minmax(0, 1fr) 30px 30px !important;
+    column-gap: 5px !important;
+  }
+}
+/* END CHESSMATE_MOVE_BREAKDOWN_DUAL_COUNTS_V1 */
+
+/* Miss category styling */
+:root {
+  --miss: #f5746a;
+}
+.mv:not(.active)[data-class="miss"] {
+  background: #f9d8d5 !important;
+}

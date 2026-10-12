@@ -1,19 +1,53 @@
+﻿.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.bak
+*.pyc
+__pycache__/
 .venv/
 venv/
-**/.venv/
-**/venv/
-__pycache__/
-**/__pycache__/
-*.pyc
-.pytest_cache/
-**/.pytest_cache/
-.mypy_cache/
-.ruff_cache/
 node_modules/
+package-lock.json
+tests/tmp/
+.claude/
+.claude-flow/
+
+# Local data and databases
+*.sqlite
+*.sqlite3
+*.db
+data/
+!data/.gitkeep
+
+# Local credentials
 .env
 .env.*
 !.env.example
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
+
+# Training weights and generated model artifacts
+*.pt
+*.pth
+*.ckpt
+*.onnx
+
+# Local backups and audit output
+*_backup*
+*-backup*
+*.final-ui-backup
+*.toggle-backup
+*.magnus-final-backup
+_audits/
+_backups/
+_github_refs/
+
+# Required board-recognition models
+!models/*.onnx
+!public/models/*.onnx
+
+# Native scanner build artifacts
+native/**/bin/
+native/**/obj/
+
+native/**/*.exe
+native/**/*.csproj.user

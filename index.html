@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="stylesheet" href="css/magnus-coach.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChessMate</title>
+  <meta name="description" content="ChessMate — analyze chess games with the Magnus Engine directly in your browser." />
+  <link rel="stylesheet" href="css/style.css?v=39" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%99%9E%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+  <div class="wrap">
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="brand">
+        
+        <div>
+          <h1 class="brand-title"><span class="brand-logo-wrap"></span><span class="brand-name">ChessMate</span></h1>
+        </div>
+      </div>
+      <div class="topright">
+        <span class="statuschip" id="engineStatus">starting&#x2026;</span>
+        <button class="ghost" id="shareBtn" title="Copy a shareable link to this game" aria-label="Share game">&#8681;</button>
+        <button class="ghost on" id="soundToggle" title="Toggle move sounds" aria-label="Toggle move sounds">&#9834;</button>
+        <button class="ghost" id="themeToggle" title="Toggle light / dark" aria-label="Toggle light / dark">&#9680;</button>
+      </div>
+    </header>
+
+    <!-- What are we doing: reviewing a played game, moving pieces freely, or playing
+         the engine? One switch, so each mode can show only what belongs to it. -->
+    <nav class="modebar" id="modeBar" role="tablist" aria-label="Mode">
+      <button class="modetab on" data-mode="analyze" role="tab">Analyze a game</button>
+      <button class="modetab" data-mode="solo" role="tab">Free board</button>
+      <button class="modetab" data-mode="bot" role="tab">Play Magnus</button>
+<a class="modetab book-reader-tab" href="book-reader.html" role="tab">Book Reader</a>
+      <a class="modetab" href="report.html" role="tab">Chess Report</a>
+      <a class="modetab" href="puzzles.html" role="tab">Puzzles</a>
+    </nav>
+
+    <!-- Play-the-engine setup. Replaces the import card while choosing. -->
+    <section class="card playsetup hidden" id="playSetup">
+      <div class="sectlabel">Play against Magnus</div>
+      <div class="setuprow">
+        <div class="setupgrp">
+          <label class="lab">You play</label>
+          <div class="sidepick">
+            <button class="pick on" id="pickWhite">&#x26AA; White</button>
+            <button class="pick" id="pickBlack">&#x26AB; Black</button>
+          </div>
+        </div>
+        <div class="setupgrp">
+          <label class="lab" for="botElo">Strength</label>
+          <select id="botElo"></select>
+        </div>
+        <button class="primary" id="botStart">Start game</button>
+      </div>
+      <p class="setupnote">It's competitive, so the engine keeps quiet while you play: no eval bar,
+        no lines, no hints. The moment the game ends (or you resign) the full review unlocks.</p>
+    </section>
+
+    <!-- Import -->
+    <section class="card import">
+      <!-- Once a game is open this whole card folds away to one line, so the
+           board sits near the top of the page instead of below the fold. -->
+      <div class="impbar hidden" id="impBar">
+        <span class="impbar-name" id="impBarTxt">–</span>
+        <button class="mini" id="impToggle">Load another game</button>
+      </div>
+
+      <div id="impBody">
+      <div class="acct">
+        <label class="lab" for="userInput">Import from Chess.com or Lichess</label>
+        <div class="acctrow">
+          <select id="siteSel" aria-label="Site to search by username">
+            <option value="chesscom">Chess.com</option>
+            <option value="lichess">Lichess</option>
+          </select>
+          <input type="text" id="userInput" spellcheck="false" autocomplete="username"
+                 placeholder="your username — or paste a link to a single game" />
+          <button class="primary" id="loadUser">Load</button>
+        </div>
+        <div class="accthint">
+          A username lists your recent games. A <b>game link</b> opens that one game —
+          any <span class="mono">lichess.org/...</span> link, or a <span class="mono">chess.com</span>
+          link to a game of yours (Chess.com only serves games by player, so search your username once first).
+        </div>
+        <div class="acctmsg hidden" id="acctMsg"></div>
+        <div class="gamelist hidden" id="gameList"></div>
+      </div>
+
+      <div class="impdiv"><span>or paste a game</span></div>
+
+      <div class="import-grid">
+        <div class="imp-pgn">
+          <label class="lab">Game (PGN)</label>
+          <textarea id="pgnInput" spellcheck="false" placeholder="Paste a PGN here..."></textarea>
+          <div class="btnrow">
+            <button class="primary" id="loadPgn">Load PGN</button>
+            <button id="loadSample">Load sample</button>
+            <label class="filebtn">&#x1F4F7; Scan a screenshot<input type="file" id="scanFile" accept="image/*" hidden /></label>
+            <button id="scanBtn" class="mini">Set up by hand</button>
+          </div>
+          <div class="scanhint">Crop the screenshot to <b>just the 8&#xD7;8 board</b> (no app window or coordinates) &#x2014; a Lichess/Chess.com board reads best. It is read automatically, then you confirm and fix it on an editable board.</div>
+        </div>
+      </div>
+      </div><!-- /impBody -->
+    </section>
+
+    <!-- Confirm-board: where a scanned screenshot (or a hand-built position) is
+         corrected and sent to analysis. Hidden until opened. -->
+    <section class="card editor hidden" id="editorCard">
+      <div class="sectlabel">Set up the position</div>
+      <p class="editnote" id="editNote"></p>
+      <div class="editmain">
+        <div class="editboardwrap"><div class="board" id="editorBoard"></div></div>
+        <div class="editside">
+          <div class="palette" id="palette"></div>
+          <div class="editrow">
+            <span class="lab">To move</span>
+            <div class="sidepick">
+              <button class="pick on" id="edWhite">&#x26AA; White</button>
+              <button class="pick" id="edBlack">&#x26AB; Black</button>
+            </div>
+          </div>
+          <div class="editbtns">
+            <button id="edFlip" class="mini">&#x21C5; Flip</button>
+            <button id="edClear" class="mini">Clear</button>
+            <button id="edStart" class="mini">Start position</button>
+          </div>
+          <div class="editactions">
+            <button class="primary" id="edAnalyze">Analyze this position</button>
+            <button id="edCancel" class="mini">Cancel</button>
+          </div>
+          <div class="editerr hidden" id="edErr"></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid">
+      <!-- LEFT: the board, and everything game-wide that reads top to bottom with it.
+           The graphs and the legend used to sit BELOW the whole grid, which left the
+           left column empty under the share bar while the right one ran on. -->
+      <div class="leftcol">
+
+      <section class="card review-header-card hidden" id="reviewHeaderCard">
+        <div class="review-header-main">
+          <div class="review-header-copy">
+            <span class="review-kicker">GAME REVIEW</span>
+            <h2 id="reviewGameTitle">?</h2>
+            <div class="review-header-meta" id="reviewGameMeta"></div>
+          </div>
+
+          <div class="review-header-actions">
+            <button class="mini" id="reviewRetryBtn">Re-analyze</button>
+            <button class="mini" id="reviewCloseBtn">Close Review</button>
+          </div>
+        </div>
+
+        <div class="review-stat-grid">
+          <div class="review-stat">
+            <span>ACCURACY</span>
+            <strong id="reviewAccuracy">?</strong>
+          </div>
+
+          <div class="review-stat">
+            <span>GAME RATING</span>
+            <strong id="reviewGameRating">?</strong>
+          </div>
+
+          <div class="review-stat">
+            <span>BEST MOVES</span>
+            <strong id="reviewBestCount">?</strong>
+          </div>
+
+          <div class="review-stat danger">
+            <span>MISTAKES + BLUNDERS</span>
+            <strong id="reviewErrors">?</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="card boardcard">
+        <div class="ghead">
+          <h2 class="serif" id="hdrTitle">–</h2>
+          <div class="ghmeta" id="hdrMeta"></div>
+          <div class="opening hidden" id="openingName"></div>
+        </div>
+
+        <div class="playerline top">
+          <span class="chip dark"></span>
+          <span class="nm" id="pBName">Black</span><span class="elo" id="pBElo"></span>
+          <span class="captured" id="capB"></span>
+        </div>
+
+        <div class="boardrow">
+          <div class="evalbar"><div class="evalfill" id="evalFill"></div><span class="evalnum bot" id="evalNum">+0.20</span></div>
+          <div class="chessmate-board-shell">
+  <div class="board" id="board"></div>
+  <div id="homeGameOverlay" class="chessmate-game-overlay" aria-hidden="true">
+    <div class="chessmate-game-overlay-card">
+      <div id="homeGameOverlayTitle" class="chessmate-game-overlay-title"></div>
+      <div id="homeGameOverlaySubtitle" class="chessmate-game-overlay-subtitle"></div>
+    </div>
+  </div>
+</div>
+        </div>
+
+        <div class="playerline bot">
+          <span class="chip light"></span>
+          <span class="nm" id="pWName">White</span><span class="elo" id="pWElo"></span>
+          <span class="captured" id="capW"></span>
+        </div>
+
+        <div class="controls">
+          <button id="bStart" title="Start (Home)">&#x23EE;</button>
+          <button id="bPrev" title="Previous arrow key">&#x25C0;</button>
+          <button id="bNext" title="Next arrow key">&#x25B6;</button>
+          <button id="bEnd" title="End (End)">&#x23ED;</button>
+          <button id="bFlip" title="Flip board (f)">&#x21C5;</button>
+        </div>
+
+        <div class="explorebar hidden" id="exploreBar"><button id="returnGame" class="mini">Return to game</button>
+        </div>
+
+        <!-- Free-board / play-the-engine status: what's happening, and the one action
+             that belongs to it (reset / resign / rematch). -->
+        <div class="playbar hidden" id="playBar">
+          <span class="play-txt" id="playTxt"></span>
+          <button class="mini hidden" id="soloReset">&#x21BB; Reset board</button>
+          <button class="mini hidden" id="botResign">&#x2691; Resign</button>
+          <button class="mini hidden" id="botRematch">&#x21BA; Rematch</button>
+        </div>
+
+        <!-- One move, one card. The verdict, the engine's better move, and the
+             walk-through of it are a single thought, so they sit together under the
+             board. They used to be split across the page — this readout here, the
+             verdict and the "Explain" button over in the engine panel — so pressing
+             Explain on the right made the left-hand column change. -->
+        <!-- /leftcol -->
+
+      <!-- RIGHT -->
+      <div class="rightcol">
+        <section class="card review">
+          <div class="rev-head">
+            <button class="primary big" id="reviewBtn" disabled>Analyze game</button>
+          </div>
+          <!-- depth belongs with the analysis, not with the import form (which folds away) -->
+          <div class="depthrow">
+            <label class="lab" for="depthSel">Depth</label>
+            <select id="depthSel">
+              <option value="12">12 &#xB7; fastest</option>
+              <option value="14">14 · fast</option>
+              <option value="16">16 · balanced</option>
+              <option value="18">18 · deep</option>
+              <option value="20">20 · deeper</option>
+              <option value="22">22 · deepest</option>
+              <option value="26">26 · maximum (slow)</option>
+            </select>
+          </div>
+          <div class="progress hidden" id="progress">
+            <div class="pbar"><div class="pfill" id="progressBar"></div></div>
+            <div class="ptxt" id="progressTxt"></div>
+          </div>
+          <!-- the headline number stays up here; the full breakdown is lower down -->
+          <div class="accstrip hidden" id="accStrip"></div>
+        </section>
+
+        <!-- Moves sit high, next to the board, so stepping through the game
+             never scrolls the board off the screen. -->
+        <section class="card movescard">
+          <div class="sectlabel">MOVES</div>
+          <div class="cm-home-opening" id="cmHomeOpening"></div>
+          <div class="movelist" id="movelist"></div>
+        </section>
+
+        <section class="card live" id="live">
+          <div class="live-head">
+            <button class="toggle on" id="liveToggle">Engine: on</button>
+            <div class="live-meta"><span class="mono" id="liveEval">–</span><span class="dim mono" id="liveDepth"></span></div>
+          </div>
+          <div class="livelines" id="liveLinesBox"></div>
+          <div class="live-foot">
+  <span id="engineName">Magnus</span>
+  <span aria-hidden="true">·</span>
+  <select id="linesSel" class="tinysel">
+    <option value="1">1 line</option><option value="2">2 lines</option><option value="3">3 lines</option><option value="4">4 lines</option>
+  </select>
+</div>
+        </section>
+
+        <!-- What HUMANS do here, next to what the engine says is best. Opening moves
+             at a chosen rating from Lichess's database; a perfect tablebase verdict
+             once the board is down to seven pieces. Free, key-less, CORS-open APIs. -->
+        <section class="card explorer hidden" id="explorerCard">
+          <div class="explorer-head">
+            <span class="sectlabel" id="explorerTitle">Opening explorer</span>
+            <select id="explorerRating" class="tinysel" aria-label="Rating band"></select>
+          </div>
+          <div class="explorer-body" id="explorerBody"></div>
+          <p class="explorer-note" id="explorerNote"></p>
+        </section>
+
+        <!-- Accuracy is shown once, up beside the board. This card is the breakdown. -->
+        <!-- One accuracy number tells you how well you played. Three tell you WHERE
+             you played badly — the only version of it you can act on. -->
+        <section class="card phases hidden" id="phases">
+          <div class="sectlabel">Accuracy by phase</div>
+          <div class="chead"><span>W</span><span>B</span></div>
+          <div class="phaserows" id="phaseRows"></div>
+          <p class="phasenote">Book moves are excluded: they are theory you remembered, not
+            moves you had to find. The small number is how many moves each accuracy is based on.</p>
+        </section>
+
+        <section class="card summary hidden" id="summary">
+          <div class="sectlabel">Move breakdown</div>
+          <div class="chead"><span>W</span><span>B</span></div>
+          <div class="counts" id="counts"></div>
+          <p class="motifnote hidden" id="motifNote"></p>
+          <div class="ratingnote">
+            The <b>game rating</b> is a rough read of this one game, not the player's Elo,
+            so it shows as a <b>provisional band</b> rather than a single number. Checked
+            against 64 real games, single-game estimates miss the true rating by several
+            hundred points either way (a quiet game reads too strong, a sharp one too
+            weak), and the band is only this game's own spread. Trends across many games
+            mean something; one number does not.
+          </div>
+        </section>
+
+        <!-- Plain-English coaching: one paragraph per side saying where the game turned
+             and what to drill. Built from the review, no extra engine work. -->
+        <section class="card advice hidden" id="coachCard">
+          <div class="sectlabel">What to work on</div>
+          <div class="coachbody" id="coachBody"></div>
+        </section>
+      </div>
+    
+      <!-- CHESSMATE_PLAYER_COMPARE_V1 -->
+      <section class="card player-compare-card hidden" id="playerCompareCard" aria-label="Player comparison">
+        <div class="pc-players">
+          <div class="pc-player">
+            <div class="pc-name" id="pcWhiteName">White</div>
+            <div class="pc-accuracy" id="pcWhiteAccuracy">—</div>
+            <div class="pc-rating" id="pcWhiteRating">Rating —</div>
+          </div>
+          <div class="pc-player">
+            <div class="pc-name" id="pcBlackName">Black</div>
+            <div class="pc-accuracy" id="pcBlackAccuracy">—</div>
+            <div class="pc-rating" id="pcBlackRating">Rating —</div>
+          </div>
+        </div>
+        <div class="pc-move-stats">
+  <div class="pc-stat">
+    <img src="./assets/move-badges/brilliant.png" alt="" />
+    <span>Brilliant</span>
+    <strong id="pcBrilliant">0</strong>
+  </div>
+  <div class="pc-stat">
+    <img src="./assets/move-badges/best.png" alt="" />
+    <span>Best moves</span>
+    <strong id="pcBest">0</strong>
+  </div>
+  <div class="pc-stat">
+    <img src="./assets/move-badges/great.png" alt="" />
+    <span>Great</span>
+    <strong id="pcGreat">0</strong>
+  </div>
+  <div class="pc-stat">
+    <img src="./assets/move-badges/good.png" alt="" />
+    <span>Good</span>
+    <strong id="pcGood">0</strong>
+  </div>
+  <div class="pc-stat">
+    <img src="./assets/move-badges/inaccuracy.png" alt="" />
+    <span>Inaccuracies</span>
+    <strong id="pcInaccuracies">0</strong>
+  </div>
+  <div class="pc-stat">
+    <img src="./assets/move-badges/blunder_double_question.png" alt="" />
+    <span>Blunders</span>
+    <strong id="pcBlunders">0</strong>
+  </div>
+</div>
+      </section>
+      <div class="coach">
+                    <div class="magnus-coach-wrap">
+            <div class="magnus-coach-visual" id="magnusCoach" aria-label="Magnus Coach">
+              <div class="magnus-coach-character">
+                <img
+                  data-magnus-image
+                  src="./assets/magnus/states/thinking.png"
+                  alt="Magnus coach"
+                />
+              </div>
+              <span class="magnus-coach-status" data-magnus-status>thinking</span>
+            </div>
+            <div class="magnus-coach-message" data-magnus-message>
+              <div class="magnus-coach-message-label">MAGNUS COACH</div>
+              <div class="magnus-coach-message-body">
+                Select a move to see detailed coaching.
+              </div>
+            </div>
+            <div class="readout">
+            <div class="cglyph" id="readGlyph">Ã¢—â€¹</div>
+            <div class="rtxt">
+              <div class="rmove" id="readMove">Starting position</div>
+              <div class="rsub" id="readSub">Use ← → keys or click a move.</div>
+            </div>
+          </div>
+
+          <div class="assess hidden" id="assessBox">
+            <div class="assess-note" id="assessNote"></div>
+            <div class="assess-best" id="assessBest"></div>
+          </div>
+
+          <!-- Opens in place of the "Explain" button that summons it. -->
+          <div class="explainbar hidden" id="explainBar">
+            <button class="stepbtn" id="explainPrev" title="Back">‹</button>
+            <span class="explain-txt" id="explainTxt"></span>
+            <button class="stepbtn" id="explainNext" title="Forward">›</button>
+            <button id="explainDone" class="mini done">✓ Got it</button>
+          </div>
+        </div>
+
+        <div class="sharebar hidden" id="shareBar">
+          <div class="sharetxt">
+            <b>Want to share this game?</b>
+            <span class="sharekind" id="shareKind"></span>
+          </div>
+          <!-- shown once the game has been reviewed: there is nothing to report before that -->
+          <button class="mini hidden" id="cardCopyBtn" title="Copy the game report to the clipboard as an image">&#x1F4CB; Copy image</button>
+          <button class="mini hidden" id="cardBtn" title="Download the game report as an image">⬇ Save image</button>
+          <button class="primary mini" id="shareBtn2">&#x1F517; Copy link</button>
+          <span class="sharenote hidden" id="shareNote"></span>
+        </div>
+      </section>
+
+      <section class="card graphcard hidden" id="graphCard">
+        <div class="sectlabel">Evaluation over the game</div>
+        <canvas id="evalGraph" class="evalgraph"></canvas>
+      </section>
+
+      <section class="card graphcard hidden" id="timeCard">
+        <div class="sectlabel">Time spent per move</div>
+        <canvas id="timeGraph" class="evalgraph"></canvas>
+        <p class="timenote hidden" id="timeNote"></p>
+      </section>
+
+      <section class="card legendcard">
+        <div class="sectlabel">Move classification</div>
+        <div class="legend" id="legend"></div>
+        <p class="note">
+          Evaluations by <b id="footEngine">Magnus Engine</b> from White's point of view (+ favors White).
+          Accuracy and labels are engine-derived estimates. <b>Brilliant</b> = a sound sacrifice;
+          <b>Great</b> = a critical only-move. Nothing leaves your device — the engine runs locally via WebAssembly.
+        </p>
+      </section>
+      </div>
+    </div>
+
+    <footer class="foot">
+      <span>Powered by <a href="https://github.com/official-stockfish/Stockfish">Magnus</a> (GPLv3) compiled to WebAssembly, and <a href="https://github.com/jhlywa/chess.js">chess.js</a>.</span>
+    </footer>
+  </div>
+
+  <script>
+  /* CHESSMATE_PERMANENT_THREE_COLUMN_LAYOUT_V2 */
+  (() => {
+    const grid = document.querySelector(".grid");
+    if (!grid) return;
+
+    const find = selector => document.querySelector(selector);
+
+    const board = find(".boardcard");
+    const moves = find(".movescard");
+    const coach = find(".coach");
+    const playerCompare = find("#playerCompareCard");
+
+    if (!board || !moves || !coach) return;
+
+    // Keep the primary workspace in three columns.
+    grid.append(board, moves, coach);
+
+    // Player comparison occupies column 3 directly above Magnus Coach.
+    if (playerCompare) {
+      grid.insertBefore(playerCompare, coach);
+      playerCompare.style.gridColumn = "3";
+      playerCompare.style.gridRow = "auto";
+      playerCompare.style.width = "100%";
+      playerCompare.style.minWidth = "0";
+      playerCompare.style.boxSizing = "border-box";
+    }
+
+    coach.style.gridColumn = "3";
+    coach.style.gridRow = "auto";
+
+    // Move existing analysis cards, preserving their IDs and contents.
+    const analysisSelectors = [
+      "#reviewHeaderCard",
+      ".rightcol > .review",
+      ".rightcol > .live",
+      ".rightcol > .explorer",
+      ".rightcol > .phases",
+      ".rightcol > .summary",
+      ".rightcol > .advice",
+      "#graphCard",
+      "#timeCard",
+      ".legendcard"
+    ];
+
+    const analysisCards = analysisSelectors
+      .map(find)
+      .filter(Boolean);
+
+    for (const card of analysisCards) {
+      grid.append(card);
+    }
+
+    console.info(
+      "[ChessMate layout] Relocated primary row and",
+      analysisCards.length,
+      "analysis cards."
+    );
+  })();
+  </script>
+  <script src="js/magnus-coach.js"></script>
+  <script src="js/coach/magnus-coach.js"></script>
+  <script type="module" src="js/app.js?v=36"></script>
+<script id="CHESSMATE_HOME_ANALYSIS_LAYOUT_FIX_V1">
+(function () {
+  "use strict";
+  if (window.__chessMateHomeAnalysisLayoutFixV1) return;
+  window.__chessMateHomeAnalysisLayoutFixV1 = true;
+
+  function install() {
+    const grid = document.querySelector(".grid");
+    const board = grid && grid.querySelector(".boardcard");
+    const moves = grid && grid.querySelector(".movescard");
+    const coach = grid && grid.querySelector(".coach");
+    const visual = coach && coach.querySelector(".magnus-coach-visual");
+    const compare = document.getElementById("playerCompareCard");
+
+    if (!grid || !board || !moves || !coach || !visual) return false;
+
+    // Keep the existing comparison card and its original data/visibility logic.
+    // Only move its presentation beneath the Magnus visual.
+    if (compare && compare.parentElement !== coach) {
+      visual.insertAdjacentElement("afterend", compare);
+    }
+
+    function syncMovePanel() {
+      if (window.matchMedia("(min-width: 1051px)").matches) {
+        const height = board.getBoundingClientRect().height;
+        if (height > 0) {
+          moves.style.setProperty("--cm-home-board-height", height + "px");
+        }
+      } else {
+        moves.style.removeProperty("--cm-home-board-height");
+      }
+    }
+
+    syncMovePanel();
+
+    if ("ResizeObserver" in window && !moves.__cmHomeResizeObserver) {
+      const observer = new ResizeObserver(syncMovePanel);
+      observer.observe(board);
+      moves.__cmHomeResizeObserver = observer;
+    }
+
+    window.addEventListener("resize", syncMovePanel, { passive: true });
+    return true;
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", install, { once: true });
+  } else {
+    install();
+  }
+})();
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,193 @@
+﻿/* ChessMate — chess-site-inspired report theme.
+   Presentation only: preserves all existing HTML IDs and data. */
+
+.report-page {
+    --report-bg: #161512;
+    --report-surface: #262421;
+    --report-surface-2: #302e2a;
+    --report-border: #403d37;
+    --report-text: #f1f0eb;
+    --report-muted: #b0ada5;
+    --report-green: #81b64c;
+    --report-green-light: #a3d160;
+    --report-red: #e16b65;
+    --report-yellow: #e0bd62;
+    --report-radius: 12px;
+
+    background: var(--report-bg) !important;
+    color: var(--report-text) !important;
+    font-family: Inter, "Segoe UI", system-ui, sans-serif !important;
+}
+
+.report-page .report-header,
+.report-page .report-main {
+    width: min(1440px, calc(100% - 48px)) !important;
+    max-width: 1440px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+.report-page .report-header {
+    padding-top: 28px !important;
+    padding-bottom: 22px !important;
+    border-bottom: 1px solid var(--report-border) !important;
+    align-items: center !important;
+}
+
+.report-page .report-header h1 {
+    font-size: clamp(30px, 3vw, 42px) !important;
+    letter-spacing: -0.035em !important;
+    font-weight: 800 !important;
+}
+
+.report-page .report-kicker,
+.report-page .section-label,
+.report-page .card-label {
+    color: var(--report-green-light) !important;
+    letter-spacing: .09em !important;
+}
+
+.report-page .report-main {
+    padding-top: 28px !important;
+    padding-bottom: 64px !important;
+}
+
+.report-page .report-hero {
+    margin-bottom: 22px !important;
+}
+
+.report-page .stat-grid {
+    gap: 10px !important;
+    margin-bottom: 22px !important;
+}
+
+.report-page .stat-grid .stat-card {
+    background: var(--report-surface) !important;
+    border: 1px solid var(--report-border) !important;
+    border-radius: var(--report-radius) !important;
+    padding: 20px !important;
+    box-shadow: none !important;
+    min-width: 0 !important;
+}
+
+.report-page .stat-card strong {
+    font-variant-numeric: tabular-nums;
+}
+
+.report-page .panel {
+    background: var(--report-surface) !important;
+    border: 1px solid var(--report-border) !important;
+    border-radius: var(--report-radius) !important;
+    box-shadow: 0 3px 12px rgba(0,0,0,.12) !important;
+    padding: 22px !important;
+    margin-bottom: 16px !important;
+}
+
+.report-page .two-column {
+    gap: 16px !important;
+    margin-bottom: 0 !important;
+}
+
+.report-page .panel-heading h3 {
+    color: var(--report-text) !important;
+    font-size: 19px !important;
+    font-weight: 750 !important;
+}
+
+.report-page .panel-note,
+.report-page #profile-summary,
+.report-page .stat-card small {
+    color: var(--report-muted) !important;
+}
+
+.report-page .report-refresh {
+    background: var(--report-green) !important;
+    color: #172012 !important;
+    border-color: var(--report-green) !important;
+    border-radius: 8px !important;
+    font-weight: 800 !important;
+}
+
+.report-page .report-refresh:hover {
+    background: var(--report-green-light) !important;
+    border-color: var(--report-green-light) !important;
+}
+
+.report-page .report-back {
+    background: var(--report-surface) !important;
+    color: var(--report-text) !important;
+    border: 1px solid var(--report-border) !important;
+    border-radius: 8px !important;
+}
+
+.report-page .game-table-wrap {
+    max-width: 100%;
+    overflow-x: auto !important;
+}
+
+.report-page .game-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.report-page .game-table th {
+    background: var(--report-surface-2) !important;
+    color: var(--report-muted) !important;
+    font-size: 11px !important;
+    letter-spacing: .05em;
+    white-space: nowrap;
+}
+
+.report-page .game-table th,
+.report-page .game-table td {
+    padding: 12px 14px !important;
+    border-bottom: 1px solid var(--report-border) !important;
+}
+
+.report-page .game-table tbody tr:hover {
+    background: var(--report-surface-2) !important;
+}
+
+.report-page button:focus-visible,
+.report-page a:focus-visible {
+    outline: 2px solid var(--report-green-light) !important;
+    outline-offset: 3px !important;
+}
+
+@media (max-width: 760px) {
+    .report-page .report-header,
+    .report-page .report-main {
+        width: calc(100% - 24px) !important;
+    }
+
+    .report-page .report-header {
+        align-items: flex-start !important;
+        flex-direction: column !important;
+        gap: 16px !important;
+    }
+
+    .report-page .report-actions {
+        flex-wrap: wrap;
+    }
+
+    .report-page .stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .report-page .two-column {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .report-page .panel {
+        padding: 16px !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .report-page *,
+    .report-page *::before,
+    .report-page *::after {
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
+    }
+}

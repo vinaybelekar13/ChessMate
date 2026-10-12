@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#171918">
+  <title>Puzzle Trainer | ChessMate</title>
+  <link rel="stylesheet" href="css/puzzles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">♞</span> ChessMate</a>
+    <a class="back-home" href="index.html"><span aria-hidden="true">←</span> Back to Home</a>
+    <span class="local-tag"><span></span> LOCAL TRAINING</span>
+  </header>
+
+  <main class="app-shell">
+    <section class="intro">
+      <div>
+        <div class="eyebrow">TACTICAL TRAINING / YOUR NEXT MOVE</div>
+        <h1>Sharpen your <span>instinct.</span></h1>
+        <p>Find the move. Calculate the reply. Finish the combination.</p>
+      </div>
+      <div class="streak-card"><span>SESSION STREAK</span><strong id="streak">0</strong><small>consecutive solves</small></div>
+    </section>
+
+    <section class="toolbar">
+      <label>DIFFICULTY
+        <select id="difficulty">
+          <option value="0-3500">All levels</option>
+          <option value="0-1000">Beginner · under 1000</option>
+          <option value="1000-1400">Club · 1000–1400</option>
+          <option value="1400-1800" selected>Intermediate · 1400–1800</option>
+          <option value="1800-2200">Advanced · 1800–2200</option>
+          <option value="2200-3500">Expert · 2200+</option>
+        </select>
+      </label>
+      <label>TACTICAL THEME
+        <select id="theme">
+          <option value="">All themes</option>
+          <option value="fork">Fork</option>
+          <option value="pin">Pin</option>
+          <option value="skewer">Skewer</option>
+          <option value="discoveredAttack">Discovered attack</option>
+          <option value="hangingPiece">Hanging piece</option>
+          <option value="mate">Checkmate</option>
+          <option value="sacrifice">Sacrifice</option>
+          <option value="endgame">Endgame</option>
+          <option value="opening">Opening</option>
+        </select>
+      </label>
+      <button id="new-puzzle" class="secondary-button">↻ New puzzle</button>
+    </section>
+
+    <section class="workspace">
+      <div class="board-column">
+        <div class="player-row">
+          <div class="avatar">♟</div>
+          <div><strong id="opponent-name">Puzzle position</strong><small id="opponent-meta">Find the best continuation</small></div>
+          <span class="rating-pill" id="rating">— ELO</span>
+        </div>
+        <div class="board-wrap">
+          <div id="board" class="board" aria-label="Interactive chessboard"></div>
+          <div id="checkmate-overlay" class="checkmate-overlay" aria-hidden="true" aria-live="polite">
+            <div class="checkmate-overlay-card" role="status">
+              <span class="checkmate-crown" aria-hidden="true">♛</span>
+              <strong id="checkmate-title">CHECKMATE</strong>
+              <span id="checkmate-subtitle">White wins</span>
+            </div>
+          </div>
+        </div>
+        <div id="move-navigation" class="move-navigation" aria-label="Move navigation">
+          <button type="button" id="move-first" class="move-nav-button" title="First position" aria-label="First position">|◀ <span>First</span></button>
+          <button type="button" id="move-previous" class="move-nav-button" title="Previous move" aria-label="Previous move">◀ <span>Previous</span></button>
+          <span id="move-position" class="move-position" aria-live="polite">Position 1 / 1</span>
+          <button type="button" id="move-next" class="move-nav-button" title="Next move" aria-label="Next move"><span>Next</span> ▶</button>
+          <button type="button" id="move-last" class="move-nav-button" title="Last position" aria-label="Last position"><span>Last</span> ▶|</button>
+        </div>
+        <div class="player-row bottom-player">
+          <div class="avatar green-avatar">♞</div>
+          <div><strong id="side-label">Your move</strong><small id="side-detail">Select a piece, then a destination</small></div>
+          <span class="turn-pill" id="turn-pill">TO MOVE</span>
+        </div>
+        <div class="board-actions">
+          <button id="flip-board" class="icon-button">⇅ Flip board</button>
+          <button id="reset-puzzle" class="icon-button">↺ Retry</button>
+          <button id="show-solution" class="icon-button">◎ Reveal solution</button>
+        </div>
+      </div>
+
+      <aside class="coach-panel">
+        <div class="panel-heading"><div><span class="eyebrow">CHESSMATE TRAINER</span><h2>Think it through.</h2></div><div class="coach-icon">♞</div></div>
+        <div id="status-card" class="status-card">
+          <span class="status-dot"></span>
+          <div><strong id="status-title">Find the best move</strong><p id="status-message">Look for checks, captures, and forcing threats. Calculate the opponent's best reply.</p></div>
+        </div>
+        <div class="objective">
+          <span class="section-label">YOUR OBJECTIVE</span>
+          <h3 id="objective-title">Find the strongest continuation</h3>
+          <p id="objective-copy">Play the solution accurately to complete the puzzle.</p>
+        </div>
+        <div class="theme-block"><span class="section-label">PUZZLE THEMES</span><div id="theme-chips" class="chips"><span class="chip">Loading…</span></div></div>
+        <div class="hint-box"><div><span class="section-label">NEED A NUDGE?</span><p id="hint-text">Start by checking all forcing moves.</p></div><button id="hint-button" class="hint-button">Get hint ↗</button></div>
+        <div class="move-section"><span class="section-label">YOUR LINE</span><div id="move-list" class="move-list">Your moves will appear here.</div></div>
+        <div class="stats-grid">
+          <div><span>SOLVED</span><strong id="solved-count">0</strong></div>
+          <div><span>ATTEMPTED</span><strong id="attempt-count">0</strong></div>
+          <div><span>ACCURACY</span><strong id="accuracy">—</strong></div>
+        </div>
+        <button id="next-puzzle" class="primary-button">Next puzzle <span>→</span></button>
+        <p class="keyboard-note">Tip: click a piece, then click its destination square.</p>
+      </aside>
+    </section>
+    <footer><span>CHESSMATE · PUZZLE LAB</span><span>Practice locally · Progress saved in this browser</span></footer>
+  </main>
+  <script type="module" src="js/puzzles.js"></script>
+</body>
+</html>
+
+
+
